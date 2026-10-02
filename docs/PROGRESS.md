@@ -34,7 +34,10 @@ Updated 2 October 2026 (Asia/Kolkata).
   User asked to run docker version in normal PowerShell. Do not work around denied access.
 - Git credential helper has no usable GitHub credential. GitHub connector has repository
   write access and can publish commits through its Git tree/commit/ref APIs.
-- User created the empty public repository and authorised using it. Initial publication underway.
+- Initial code published and verified at commit a01582acf1733d17a0bf35d07e19333127c87422.
+- GitHub CI run 37037312901 passed core tests and both real PostgreSQL transaction tests,
+  Python syntax checks, and Docker Compose validation on Linux.
+- Adding full-stack integration CI so actual Spark/Kafka/HDFS can be tested without local Docker access.
 
 ## Next work
 

@@ -1,0 +1,13 @@
+# Fits a hosted CI runner; retain a real Spark standalone worker.
+services:
+  kafka:
+    environment:
+      KAFKA_HEAP_OPTS: '-Xms256m -Xmx384m'
+  namenode:
+    environment: {HADOOP_HEAPSIZE: '256'}
+  datanode:
+    environment: {HADOOP_HEAPSIZE: '256'}
+  spark-worker:
+    command: ['/opt/spark/bin/spark-class', 'org.apache.spark.deploy.worker.Worker', '--cores', '2', '--memory', '1536m', 'spark://spark-master:7077']
+  streaming:
+    command: ['/opt/spark/bin/spark-submit', '--master', 'spark://spark-master:7077', '--driver-memory', '1g', '--executor-memory', '1g', '--conf', 'spark.driver.host=streaming', '--conf', 'spark.jars.ivy=/tmp/ivy', '--packages', 'org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.6', '/app/jobs/streaming.py']

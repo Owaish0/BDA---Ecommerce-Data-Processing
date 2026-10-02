@@ -6,6 +6,7 @@ COPY src ./src
 RUN pip install --no-cache-dir '.[pipeline]'
 COPY jobs ./jobs
 COPY scripts ./scripts
+COPY tests ./tests
 RUN mkdir -p /opt/spark/work-dir /tmp/ivy && chmod -R 777 /opt/spark/work-dir /tmp/ivy
 ENV PYTHONPATH=/app/src
 ENV PYSPARK_PYTHON=python3

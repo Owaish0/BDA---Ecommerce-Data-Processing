@@ -25,3 +25,27 @@ jobs:
       - run: python -m compileall -q src jobs dashboard scripts
       - run: docker compose config --quiet
         env: {POSTGRES_PASSWORD: test-only}
+      - run: ruff check .
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      POSTGRES_PASSWORD: ci-test-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - name: Build full stack
+        run: docker compose -f compose.yaml -f compose.ci.yaml build
+      - name: Validate real Spark transforms
+        run: docker compose run --rm --no-deps batch /opt/spark/bin/spark-submit --master 'local[2]' --driver-memory 1g /app/tests/spark_contract.py
+      - name: Kafka Spark HDFS PostgreSQL dashboard and recovery
+        run: python scripts/integration.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-evidence
+          path: reports/
+      - name: Stop test services
+        if: always()
+        run: docker compose -f compose.yaml -f compose.ci.yaml down
