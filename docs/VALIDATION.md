@@ -27,6 +27,30 @@ and event contract. They do not prove Kafka/Spark/HDFS integration.
 | Scaling | One/two workers; 100/500/1000 events/s | Results correct; hardware and throughput recorded |
 | UI | Inspect live/empty/database-down dashboard | Readable charts and honest empty/error states |
 
-CI currently runs core and real PostgreSQL sink tests, syntax checks, and Compose parsing.
-Full-stack CI and staged watermark tests remain to be added after local integration works.
+CI runs 15 contract/workload/PostgreSQL tests, syntax checks, lint, and Compose parsing.
+Full-stack CI builds Kafka, Hadoop, Spark and the dashboard, runs actual Spark window
+and staged watermark tests, then verifies known input counts, checkpoint recovery,
+snapshot reconciliation and browser rendering. Historical reports and extended outage
+cases are being validated; consult PROGRESS.md for executed results.
 Do not relabel skipped tests as passes or publish benchmark results without measurements.
+
+## Performance experiments
+
+With the stack running, stop the continuous producer and let existing work drain:
+
+```sh
+docker compose stop producer
+python scripts/benchmark.py --rates 100 500 1000 --trials 3 --events 1000
+```
+
+The report is saved to `reports/benchmark.json`, with Spark cluster details and Docker
+versions. It reports finite batch visibility time including producer container startup,
+delivery and up to five seconds of polling. Percentiles describe batch trials, not
+individual event latency. Three trials are only a classroom demonstration, not a
+statistically strong capacity claim. Increase trials and workload duration for deeper work.
+
+To compare workers, archive the first report, enable `docker compose --profile scale up
+-d spark-worker-2`, verify two live workers in Spark, and repeat the same workload.
+Keep machine resources and all settings fixed. Do not assume that another worker on the
+same laptop improves performance. The benchmark refuses to run alongside the continuous
+producer, and it appends data rather than deleting history.

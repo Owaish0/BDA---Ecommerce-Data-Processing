@@ -30,6 +30,12 @@ Updated 2 October 2026 (Asia/Kolkata).
   checking for the chart before it rendered; explicit waits and failure screenshots added.
 - Latest local tests: 13 passed, 2 PostgreSQL tests skipped locally (previous CI passed both).
 - Historical conflict audit and producer scenario contract tests added; full CI rerun pending.
+- Commit b594632 passed all 15 CI tests and lint. Its full-stack run is 37041756610.
+- Local rebuild reached HDFS initialization but failed; NameNode inspection subsequently
+  showed safe mode off and one healthy DataNode. Added bounded initialization retries and
+  automatic startup diagnostic logs. Awaiting user's rebuild result.
+- Extended integration cases for PostgreSQL outage, Kafka/HDFS restarts, duplicates and
+  invalid events, plus a finite-batch performance harness. These additions await CI execution.
 
 - Nine core unit tests passed locally.
 - Two PostgreSQL sink tests skipped locally because no isolated database is available.

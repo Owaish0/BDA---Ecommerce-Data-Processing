@@ -10,5 +10,6 @@ RUN curl -fsSL "https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VE
 ENV HADOOP_HOME=/opt/hadoop
 ENV PATH=/opt/hadoop/bin:/opt/hadoop/sbin:$PATH
 COPY docker/hadoop-entrypoint.sh /entrypoint.sh
-RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+COPY docker/hdfs-init.sh /hdfs-init.sh
+RUN sed -i 's/\r$//' /entrypoint.sh /hdfs-init.sh && chmod +x /entrypoint.sh /hdfs-init.sh
 ENTRYPOINT ["/entrypoint.sh"]

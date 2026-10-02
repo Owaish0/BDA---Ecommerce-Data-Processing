@@ -98,8 +98,8 @@ services:
     build:
       context: .
       dockerfile: docker/hadoop.Dockerfile
-    entrypoint: ['/bin/sh', '-c']
-    command: ['hdfs dfs -fs hdfs://namenode:9000 -mkdir -p /ecommerce /checkpoints && hdfs dfs -fs hdfs://namenode:9000 -chmod -R 777 /ecommerce /checkpoints']
+    entrypoint: ['timeout', '240', '/bin/sh', '/hdfs-init.sh']
+    command: []
     depends_on:
       namenode: {condition: service_healthy}
       datanode: {condition: service_healthy}

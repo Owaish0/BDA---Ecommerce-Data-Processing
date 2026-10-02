@@ -27,5 +27,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Docker engine is unavailable. Start Docker Des
 & $DockerPath compose config --quiet
 if ($LASTEXITCODE -ne 0) { throw 'Compose configuration failed.' }
 & $DockerPath compose up -d --build
-if ($LASTEXITCODE -ne 0) { throw 'Stack startup failed. Inspect docker compose logs.' }
+if ($LASTEXITCODE -ne 0) {
+    & $DockerPath compose logs --no-color --tail=40 hdfs-init namenode datanode streaming
+    throw 'Stack startup failed. The diagnostic logs are printed above.'
+}
 Write-Output 'Dashboard: http://localhost:8501 | Spark: http://localhost:8080 | HDFS: http://localhost:9870'
