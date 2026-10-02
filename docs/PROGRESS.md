@@ -38,15 +38,19 @@ and continuation after quota resets. Active hourly automation: build-and-checkpo
   its earlier backlog. No fabricated dashboard data is used.
 - Windows demo helper argument forwarding verified with a mock executable (Batch/Burst).
 
-## Current work
+## Completion status
 
-- Run 37043668154 passed all extended integration checks again. The actual demo ran for
-  about 76 seconds, including 120 verified new events, but video.save_as ran after browser.close
-  and failed. The raw WebM was retained in artifact 11242979032. Export order is now fixed.
-  Rerun and inspect the final recording and one/two-worker benchmarks before claiming completion.
-- Earlier outputs/CS404_ECommerce_Demo_Preview.mp4 is a design mockup, not an actual recording.
-- User was asked to run scripts/demo.ps1 -Action Batch to populate the local historical panel.
-- Unpublished changes: scripts/demo.ps1 and its docs; finalize and publish after current checks.
+- Full workflow 37045071846 PASSED for implementation commit 9104f75: tests, real Spark,
+  extended integration/recovery, actual video export and both worker benchmarks.
+- Final evidence downloaded to outputs/final-verification. The actual named WebM was
+  converted to outputs/CS404_Actual_Project_Demo.mp4. Earlier mockup remains separately named.
+- Measured results are in docs/RESULTS.md and outputs/CS404_Test_Report.md. Two workers
+  allocated four executor cores; the small finite workloads showed no consistent speedup.
+- Windows demo helper is published and its forwarding checks passed.
+- The local live pipeline is verified. User confirmation of the optional local historical
+  batch remains pending; the historical job already passed in CI.
+- No further implementation work is required for the agreed classroom scope. Hourly work
+  can remain quiet unless the user reports a local issue or requests changes.
 
 ## Access and operational constraints
 
@@ -60,10 +64,8 @@ and continuation after quota resets. Active hourly automation: build-and-checkpo
 - Kafka/HDFS replication is one for this laptop project. Service recovery is verified;
   host/disk-loss tolerance, production authentication and backup restore are outside this topology.
 
-## Remaining completion work
+## Handover
 
-1. Inspect run 37043668154; repair any demo or benchmark failure and rerun affected checks.
-2. Download and inspect actual video, screenshots and benchmark reports; deliver usable artifacts.
-3. Update README/validation evidence and publish the final Windows helper/docs.
-4. Confirm local historical report if the user replies, then summarize the demonstrated features.
-5. Stop the hourly build automation once all requested implementation and deliverable work is done.
+Use docs/DEMO.md for the professor demonstration and docs/RESULTS.md for evidence.
+Do not rerun the full suite for documentation-only changes. Preserve checkpoints and volumes.
+Respond to the pending local batch result if the user supplies it; do not repeatedly ask.
