@@ -46,6 +46,16 @@ jobs:
         run: docker compose run --rm --no-deps batch /opt/spark/bin/spark-submit --master 'local[2]' --driver-memory 1g /app/tests/spark_contract.py
       - name: Kafka Spark HDFS PostgreSQL dashboard and recovery
         run: python scripts/integration.py
+      - name: Record actual dashboard demonstration
+        run: python scripts/record_demo.py
+        env: {DEMO_USE_CI: '1'}
+      - name: Measure one and two worker finite workloads
+        run: |
+          python scripts/benchmark.py --ci --events 300 --trials 3 --workers 1
+          python -c "from pathlib import Path; Path('reports/benchmark.json').rename('reports/benchmark-one-worker.json')"
+          docker compose -f compose.yaml -f compose.ci.yaml --profile scale up -d spark-worker-2
+          python scripts/benchmark.py --ci --events 300 --trials 3 --workers 2
+          python -c "from pathlib import Path; Path('reports/benchmark.json').rename('reports/benchmark-two-workers.json')"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -53,4 +63,4 @@ jobs:
           path: reports/
       - name: Stop test services
         if: always()
-        run: docker compose -f compose.yaml -f compose.ci.yaml down
+        run: docker compose -f compose.yaml -f compose.ci.yaml --profile scale down

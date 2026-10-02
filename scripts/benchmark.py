@@ -21,6 +21,7 @@ def main():
     parser.add_argument("--rates", type=int, nargs="+", default=[100, 500, 1000])
     parser.add_argument("--trials", type=int, default=3)
     parser.add_argument("--events", type=int, default=1000)
+    parser.add_argument("--workers", type=int, default=1, help="Expected live worker count")
     parser.add_argument("--ci", action="store_true", help="Use the smaller CI Compose override")
     args = parser.parse_args()
     if min(args.rates) <= 0 or args.trials <= 0 or args.events <= 0:
@@ -29,8 +30,15 @@ def main():
         PREFIX[:] = ["docker", "compose"]
     if command("ps", "--status", "running", "-q", "producer"):
         parser.error("Stop the continuous producer first; benchmark needs exclusive input")
-    with urllib.request.urlopen("http://localhost:8080/json/", timeout=10) as response:
-        cluster = json.load(response)
+    cluster = {}
+
+    def workers_ready():
+        nonlocal cluster
+        with urllib.request.urlopen("http://localhost:8080/json/", timeout=10) as response:
+            cluster = json.load(response)
+        return sum(w.get("state") == "ALIVE" for w in cluster.get("workers", [])) == args.workers
+
+    wait_for(workers_ready, "expected Spark workers register", seconds=120)
     records = []
     Path("reports").mkdir(exist_ok=True)
     for rate in args.rates:
@@ -58,7 +66,7 @@ def main():
         summaries.append({"rate": rate, "batch_visibility_p50_seconds": percentile(values, .5),
                           "batch_visibility_p95_seconds": percentile(values, .95)})
     report = {
-        "host": platform.platform(), "cluster": cluster,
+        "host": platform.platform(), "cluster": cluster, "expected_workers": args.workers,
         "docker_version": subprocess.check_output(["docker", "version", "--format", "{{json .}}"], text=True),
         "measurements": records, "summaries": summaries,
         "definition": "Finite batch launch to all events visible in sales metrics. Includes producer container startup, delivery and polling (up to 5s). Not per-event latency or sustainable throughput. Small-sample percentiles are descriptive only.",

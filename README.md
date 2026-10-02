@@ -4,8 +4,10 @@ A course project that processes synthetic shopping events using Apache Kafka, Py
 Spark SQL, Spark Structured Streaming, HDFS, PostgreSQL, and a Streamlit dashboard.
 No machine learning training is required.
 
-**Current status:** implementation in progress. Core tests run locally; the complete
-container stack has not yet been executed and verified. See [progress](docs/PROGRESS.md).
+**Current status:** the full container stack passed [integration run 37041756610](https://github.com/Owaish0/BDA---Ecommerce-Data-Processing/actions/runs/37041756610):
+1,100 accepted events, streaming restart recovery, exact batch reconciliation,
+historical reports and browser rendering. All 15 contract/workload/database tests passed.
+Extended outage tests and local Windows validation are in progress. See [progress](docs/PROGRESS.md).
 
 ## Architecture
 

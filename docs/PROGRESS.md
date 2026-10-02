@@ -36,6 +36,14 @@ Updated 2 October 2026 (Asia/Kolkata).
   automatic startup diagnostic logs. Awaiting user's rebuild result.
 - Extended integration cases for PostgreSQL outage, Kafka/HDFS restarts, duplicates and
   invalid events, plus a finite-batch performance harness. These additions await CI execution.
+- Full run 37041756610 PASSED: all services, 1,100 accepted events, checkpoint restart,
+  exact reconciliation, historical report and real browser rendering. Evidence downloaded
+  to outputs/integration-evidence (outside the repository).
+- User rebuilt successfully. Local Spark master reports a running application with two
+  executor cores; all five queries have recent progress. Local dashboard displayed 15,968
+  events and 1,602 purchases at 17:48 UTC while catching up on earlier queued data.
+- Extended recovery run 37042717024 is in progress for commit 93dd610.
+- Actual browser video recording added to CI, pending execution; earlier MP4 remains a mockup.
 
 - Nine core unit tests passed locally.
 - Two PostgreSQL sink tests skipped locally because no isolated database is available.

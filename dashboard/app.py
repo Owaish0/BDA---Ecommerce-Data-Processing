@@ -5,6 +5,9 @@ import plotly.express as px
 import psycopg
 from psycopg.rows import dict_row
 import streamlit as st
+from ecommerce.events import CATALOG
+
+PRODUCT_NAMES = {item[0]: item[1] for item in CATALOG}
 
 st.set_page_config(page_title="CS404 Commerce Pulse", page_icon="📊", layout="wide")
 st.title("Commerce Pulse")
@@ -64,24 +67,29 @@ def live():
         left, right = st.columns([2, 1])
         left.plotly_chart(
             px.line(
-                series, x="window_start", y="Revenue (INR)", markers=True, title="Revenue per 1-minute window"
+                series, x="window_start", y="Revenue (INR)", markers=True,
+                title="Revenue per 1-minute window", labels={"window_start": "Window start (UTC)"}
             ),
             use_container_width=True,
         )
         categories = df.groupby("category", as_index=False)["revenue_paise"].sum()
         categories["Revenue (INR)"] = categories["revenue_paise"] / 100
         right.plotly_chart(
-            px.bar(categories, x="category", y="Revenue (INR)", title="Category sales"),
+            px.bar(categories, x="category", y="Revenue (INR)", title="Category sales",
+                   labels={"category": "Category"}),
             use_container_width=True,
         )
         st.subheader("Recent product activity")
         if trending:
+            trend_frame = pd.DataFrame(trending)
+            trend_frame["Product"] = trend_frame["product_id"].map(PRODUCT_NAMES).fillna(trend_frame["product_id"])
             st.plotly_chart(
                 px.bar(
-                    pd.DataFrame(trending),
-                    x="product_id",
+                    trend_frame,
+                    x="Product",
                     y="views",
                     title="Views in latest 5-minute sliding window",
+                    labels={"views": "Views"},
                 ),
                 use_container_width=True,
             )

@@ -38,3 +38,15 @@ integration fixture to test that rule before claiming it passed.
 
 Keep screenshots, logs, timings, and reconciliation reports with the final submission.
 The earlier video is a design mockup and must not be represented as a recording of this code.
+
+## Actual application recording
+
+The integration workflow records the actual browser in `reports/demo/CS404-actual-dashboard.webm`
+after its correctness checks pass. The recording sends 120 new synthetic burst events through
+Kafka and verifies that the published metrics increase by 120. It shows the live cards,
+product activity, pipeline health, and the previous historical snapshot. Download the
+`integration-evidence` artifact from the corresponding successful GitHub run.
+
+To record locally, stop the continuous producer, drain the pipeline, create a historical
+report, install Playwright and its Chromium browser, then run `python scripts/record_demo.py`.
+The recording is an actual application capture, with synthetic input data; it has no voiceover.
