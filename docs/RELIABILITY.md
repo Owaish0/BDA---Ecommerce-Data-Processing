@@ -30,7 +30,8 @@ all windows by itself. Current dashboard windows are provisional.
 the retained horizon are not promised to be globally suppressed. An exact historical
 query deduplicates IDs again; differences from a streaming run must be analysed instead
 of hidden. Contradictory payloads sharing an ID currently have first-observed semantics;
-a conflict-audit rule is an outstanding enhancement.
+the historical job audits canonical payloads in bronze and fails if an ID has multiple
+payload variants. Conflicts are written to a Parquet audit report for investigation.
 
 ## Recovering services
 

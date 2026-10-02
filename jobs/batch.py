@@ -4,7 +4,7 @@ import argparse
 import os
 import uuid
 from pyspark.sql import functions as F
-from ecommerce.spark_common import spark, metrics
+from ecommerce.spark_common import spark, metrics, parsed, EVENT_SCHEMA
 from ecommerce.sink import publish_batch_report
 
 parser = argparse.ArgumentParser()
@@ -16,6 +16,26 @@ if not 0 < args.sample_fraction <= 1:
     parser.error("sample fraction must be in (0, 1]")
 s = spark("CS404 Historical Analytics")
 try:
+    lake_root = os.getenv("LAKE_ROOT", "hdfs://namenode:9000/ecommerce")
+    bronze_path = s._jvm.org.apache.hadoop.fs.Path(lake_root + "/bronze")
+    filesystem = bronze_path.getFileSystem(s._jsc.hadoopConfiguration())
+    conflicts = 0
+    if filesystem.exists(bronze_path):
+        raw_events = parsed(s.read.parquet(lake_root + "/bronze")).filter("valid")
+        canonical_fields = [F.col(field.name) for field in EVENT_SCHEMA.fields if field.name != "event_time"]
+        fingerprint = F.sha2(F.to_json(F.struct(*canonical_fields, F.col("event_ts"))), 256)
+        audit = (
+            raw_events.withColumn("fingerprint", fingerprint)
+            .groupBy("event_id")
+            .agg(F.countDistinct("fingerprint").alias("payload_variants"))
+            .filter("payload_variants > 1")
+        )
+        audit.write.mode("overwrite").parquet(args.output + "/conflicting_ids")
+        conflicts = audit.count()
+        if conflicts:
+            raise RuntimeError(
+                f"Found {conflicts} event IDs with conflicting payloads. Resolve them before claiming exact historical totals."
+            )
     events = s.read.parquet(args.source).dropDuplicates(["event_id"]).cache()
     events.createOrReplaceTempView("events")
     sales = metrics(events)
@@ -58,6 +78,7 @@ try:
         "totals": totals.first().asDict(),
         "sampling": sample.first().asDict(),
         "session_funnel": funnel.first().asDict(),
+        "conflicting_event_ids": conflicts,
         "definition": "Exact unique-event historical snapshot. One purchase event is one single-product order.",
     }
     if os.getenv("DATABASE_URL"):

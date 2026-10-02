@@ -23,6 +23,14 @@ Updated 2 October 2026 (Asia/Kolkata).
 
 ## Evidence
 
+- Run 37039777345 built the corrected Spark image and passed real Spark window/oracle,
+  staged duplicate suppression, and within/beyond-watermark tests.
+- That run processed 1,100 events through Kafka/Spark/HDFS/PostgreSQL, recovered from
+  streaming restart, and passed snapshot reconciliation. The browser test failed by
+  checking for the chart before it rendered; explicit waits and failure screenshots added.
+- Latest local tests: 13 passed, 2 PostgreSQL tests skipped locally (previous CI passed both).
+- Historical conflict audit and producer scenario contract tests added; full CI rerun pending.
+
 - Nine core unit tests passed locally.
 - Two PostgreSQL sink tests skipped locally because no isolated database is available.
 - Python syntax checks passed.

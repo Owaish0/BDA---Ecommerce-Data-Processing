@@ -114,8 +114,10 @@ def main():
         "/app/jobs/reconcile.py",
         timeout=180,
     )
+    command("run", "--rm", "--no-deps", "batch", timeout=180)
+    assert int(sql("SELECT count(*) FROM batch_reports")) == 1, "Historical report was not published"
     if os.getenv("VERIFY_DASHBOARD_BROWSER") == "1":
-        subprocess.run(["python", "scripts/inspect_dashboard.py"], check=True, timeout=90)
+        subprocess.run(["python", "scripts/inspect_dashboard.py"], check=True, timeout=210)
     report = {
         "accepted_events": 1100,
         "dashboard_health": "passed",

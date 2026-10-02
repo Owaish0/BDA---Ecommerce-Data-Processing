@@ -40,6 +40,8 @@ class ContractTests(unittest.TestCase):
             {"event_type": "refund"},
             {"event_id": " "},
             {"schema_version": 2},
+            {"schema_version": 1.0},
+            {"event_type": []},
             {"event_time": "2026-01-01T10:00:00"},
             {"price_paise": -1},
             {"category": "x" * 129},

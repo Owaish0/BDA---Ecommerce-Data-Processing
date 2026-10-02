@@ -1,6 +1,19 @@
-param([string]$DockerPath = 'docker')
+param([string]$DockerPath = '')
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
+if (!$DockerPath) {
+    $dockerCommand = Get-Command docker -ErrorAction SilentlyContinue
+    if ($dockerCommand) {
+        $DockerPath = $dockerCommand.Source
+    } else {
+        $dockerCandidates = @(
+            "$env:LOCALAPPDATA\Programs\DockerDesktop\resources\bin\docker.exe",
+            "$env:ProgramFiles\Docker\Docker\resources\bin\docker.exe"
+        )
+        $DockerPath = $dockerCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    }
+}
+if (!$DockerPath) { throw 'Docker was not found. Pass -DockerPath with the full path to docker.exe.' }
 if (!(Test-Path -LiteralPath '.env')) {
     $secretBytes = New-Object byte[] 24
     $randomGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
