@@ -15,3 +15,6 @@ CREATE TABLE IF NOT EXISTS batch_commits (
 CREATE TABLE IF NOT EXISTS query_progress (
  query_name text PRIMARY KEY, progress jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS batch_reports (
+ run_id text PRIMARY KEY, summary jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now()
+);

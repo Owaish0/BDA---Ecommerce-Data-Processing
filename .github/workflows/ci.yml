@@ -31,12 +31,17 @@ jobs:
     timeout-minutes: 35
     env:
       POSTGRES_PASSWORD: ci-test-only
+      VERIFY_DASHBOARD_BROWSER: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: '3.11'}
       - name: Build full stack
         run: docker compose -f compose.yaml -f compose.ci.yaml build
+      - name: Install browser verification tools
+        run: |
+          pip install playwright==1.49.1
+          python -m playwright install chromium --with-deps
       - name: Validate real Spark transforms
         run: docker compose run --rm --no-deps batch /opt/spark/bin/spark-submit --master 'local[2]' --driver-memory 1g /app/tests/spark_contract.py
       - name: Kafka Spark HDFS PostgreSQL dashboard and recovery

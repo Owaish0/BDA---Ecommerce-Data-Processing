@@ -65,3 +65,10 @@ def record_progress(name, progress):
                       ON CONFLICT(query_name) DO UPDATE SET progress=EXCLUDED.progress,updated_at=now()""",
             (name, json.dumps(progress)),
         )
+
+
+def publish_batch_report(run_id, summary):
+    with connection() as conn:
+        conn.execute(
+            "INSERT INTO batch_reports(run_id,summary) VALUES (%s,%s::jsonb)", (run_id, json.dumps(summary))
+        )

@@ -35,6 +35,7 @@ def live():
             (minutes,),
         )
         progress = load("SELECT * FROM query_progress ORDER BY query_name")
+        historical = load("SELECT * FROM batch_reports ORDER BY created_at DESC LIMIT 1")
         trending = load("""SELECT product_id, sum(views) AS views, sum(purchases) AS purchases
           FROM window_metrics WHERE query_name='trending-5m-v1'
           AND window_start=(SELECT max(window_start) FROM window_metrics WHERE query_name='trending-5m-v1')
@@ -124,6 +125,40 @@ def live():
     st.caption(
         "Stale progress may mean an idle source or a failed query; inspect service logs. Trigger duration is processing time, not end-to-end latency."
     )
+    st.subheader("Historical analysis and approximations")
+    if not historical:
+        st.info(
+            "Run historical analysis to compare exact totals, approximate distinct users, sampling estimates, and the session funnel."
+        )
+    else:
+        report = historical[0]
+        summary = report["summary"]
+        st.caption("Historical snapshot created at " + report["created_at"].strftime("%Y-%m-%d %H:%M UTC"))
+        totals = summary["totals"]
+        exact = totals.get("active_users_exact", 0) or 0
+        approx = totals.get("active_users_approx", 0) or 0
+        left, middle, right = st.columns(3)
+        left.metric("Exact distinct users", f"{exact:,}")
+        middle.metric("Approximate distinct users", f"{approx:,}")
+        right.metric("Observed distinct-count error", f"{abs(approx-exact)/exact:.1%}" if exact else "—")
+        sample = summary["sampling"]
+        st.write(f"Sampling fraction: {sample['fraction']:.0%} · sampled events: {sample['sample_count']:,}")
+        comparison = [
+            {"Metric": "Events", "Exact": totals["events"], "Sample estimate": sample["estimated_events"]},
+            {
+                "Metric": "Revenue (INR)",
+                "Exact": (totals["revenue_paise"] or 0) / 100,
+                "Sample estimate": (sample["estimated_revenue_paise"] or 0) / 100,
+            },
+        ]
+        st.dataframe(comparison, use_container_width=True)
+        funnel = summary["session_funnel"]
+        denominator = funnel["cart_sessions"] or 0
+        numerator = funnel["converted_sessions"] or 0
+        st.metric("Observed cart-session conversion", f"{numerator/denominator:.1%}" if denominator else "—")
+        st.caption(
+            "A converted session has a purchase after its first cart event. This is observational, not causal attribution. Historical and live horizons may differ."
+        )
 
 
 live()

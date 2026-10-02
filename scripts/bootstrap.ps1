@@ -3,8 +3,10 @@ $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
 if (!(Test-Path -LiteralPath '.env')) {
     $secretBytes = New-Object byte[] 24
-    [System.Security.Cryptography.RandomNumberGenerator]::Fill($secretBytes)
-    $localPassword = [Convert]::ToHexString($secretBytes)
+    $randomGenerator = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    $randomGenerator.GetBytes($secretBytes)
+    $randomGenerator.Dispose()
+    $localPassword = [BitConverter]::ToString($secretBytes).Replace('-', '')
     (Get-Content -LiteralPath '.env.example' -Raw).Replace('replace-with-a-local-password', $localPassword) | Set-Content -LiteralPath '.env'
 }
 & $DockerPath info

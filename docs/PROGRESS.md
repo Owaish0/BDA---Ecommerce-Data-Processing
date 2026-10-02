@@ -38,6 +38,10 @@ Updated 2 October 2026 (Asia/Kolkata).
 - GitHub CI run 37037312901 passed core tests and both real PostgreSQL transaction tests,
   Python syntax checks, and Docker Compose validation on Linux.
 - Adding full-stack integration CI so actual Spark/Kafka/HDFS can be tested without local Docker access.
+- Full-stack run 37037808077 built all images and passed real Spark SQL window/oracle tests,
+  but failed before metrics publication because Spark's runtime Python could not import psycopg.
+- Fixing interpreter consistency (python3 -m pip and explicit driver interpreter), adding build-time import check.
+- User started local bootstrap; Hadoop download is still in progress.
 
 ## Next work
 

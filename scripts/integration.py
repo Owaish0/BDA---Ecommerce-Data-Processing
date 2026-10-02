@@ -114,6 +114,8 @@ def main():
         "/app/jobs/reconcile.py",
         timeout=180,
     )
+    if os.getenv("VERIFY_DASHBOARD_BROWSER") == "1":
+        subprocess.run(["python", "scripts/inspect_dashboard.py"], check=True, timeout=90)
     report = {
         "accepted_events": 1100,
         "dashboard_health": "passed",
@@ -132,3 +134,9 @@ if __name__ == "__main__":
         result = subprocess.run(PREFIX + ["logs", "--no-color", "--tail=300"], capture_output=True, text=True)
         Path("reports").mkdir(exist_ok=True)
         Path("reports/services.log").write_text(result.stdout + result.stderr, encoding="utf-8")
+        diagnostic_lines = [
+            line
+            for line in result.stdout.splitlines()
+            if any(word in line for word in ["ERROR", "Traceback", "ModuleNotFoundError", "Exception:"])
+        ]
+        print("\n".join(diagnostic_lines[-50:]), flush=True)

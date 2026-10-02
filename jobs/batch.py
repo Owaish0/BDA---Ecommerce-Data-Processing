@@ -2,8 +2,10 @@
 
 import argparse
 import os
+import uuid
 from pyspark.sql import functions as F
 from ecommerce.spark_common import spark, metrics
+from ecommerce.sink import publish_batch_report
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--source", default=os.getenv("LAKE_ROOT", "hdfs://namenode:9000/ecommerce") + "/silver")
@@ -51,6 +53,15 @@ try:
        sum(CASE WHEN last_purchase >= first_cart THEN 1 ELSE 0 END) AS converted_sessions
        FROM sessions""")
     funnel.write.mode("overwrite").json(args.output + "/session_funnel")
+    summary = {
+        "source": args.source,
+        "totals": totals.first().asDict(),
+        "sampling": sample.first().asDict(),
+        "session_funnel": funnel.first().asDict(),
+        "definition": "Exact unique-event historical snapshot. One purchase event is one single-product order.",
+    }
+    if os.getenv("DATABASE_URL"):
+        publish_batch_report(str(uuid.uuid4()), summary)
     totals.show(truncate=False)
     sample.show(truncate=False)
     funnel.show(truncate=False)
