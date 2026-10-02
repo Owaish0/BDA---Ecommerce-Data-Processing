@@ -53,8 +53,10 @@ def main():
             time.sleep(10)
         finally:
             context.close()
-            browser.close()
-        video.save_as("reports/demo/CS404-actual-dashboard.webm")
+            try:
+                video.save_as("reports/demo/CS404-actual-dashboard.webm")
+            finally:
+                browser.close()
     print("Recorded actual dashboard with 120 acknowledged burst events and verified metric growth")
 
 

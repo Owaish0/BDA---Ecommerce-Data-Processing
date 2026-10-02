@@ -3,6 +3,11 @@
 Target duration: 8–10 minutes. Run the stack before presenting so image downloads are
 not part of the viva. Use real output and keep synthetic data clearly labelled.
 
+Windows users can use `./scripts/demo.ps1 -Action Status` without putting Docker on PATH.
+Available actions are Status, Pause, Resume, Burst, Duplicates, Invalid, Late, Batch,
+and Restart. Scenario actions pause continuous traffic and generate 2,000 finite events.
+Use Resume afterwards. Batch analyzes a snapshot; Pause and drain first for reconciliation.
+
 1. **Architecture (1 minute).** Explain the producer, Kafka partitions, Spark tasks,
    HDFS bronze/silver layers, PostgreSQL metrics, and Streamlit UI. No classifier training.
 2. **Ingestion (1 minute).** Show producer logs and Kafka topic configuration:
