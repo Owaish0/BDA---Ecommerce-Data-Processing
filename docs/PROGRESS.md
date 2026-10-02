@@ -41,6 +41,9 @@ Updated 2 October 2026 (Asia/Kolkata).
 - Full-stack run 37037808077 built all images and passed real Spark SQL window/oracle tests,
   but failed before metrics publication because Spark's runtime Python could not import psycopg.
 - Fixing interpreter consistency (python3 -m pip and explicit driver interpreter), adding build-time import check.
+- Build check caught a second packaging issue: the Spark image's pip/backend generated an
+  UNKNOWN package and silently omitted optional dependencies. Pinning compatible build tooling,
+  installing with no build isolation, and checking imports at image build time.
 - User started local bootstrap; Hadoop download is still in progress.
 
 ## Next work

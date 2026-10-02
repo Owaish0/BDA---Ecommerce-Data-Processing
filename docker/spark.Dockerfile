@@ -3,7 +3,9 @@ USER root
 WORKDIR /app
 COPY pyproject.toml ./
 COPY src ./src
-RUN python3 -m pip install --no-cache-dir '.[pipeline]' \
+RUN python3 --version \
+ && python3 -m pip install --no-cache-dir --upgrade pip==24.3.1 setuptools==68.2.2 wheel==0.45.1 \
+ && python3 -m pip install --no-cache-dir --no-build-isolation '.[pipeline]' \
  && python3 -c "import psycopg, confluent_kafka; print('Spark runtime dependencies verified')"
 COPY jobs ./jobs
 COPY scripts ./scripts

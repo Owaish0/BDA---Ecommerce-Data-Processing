@@ -1,12 +1,12 @@
 [build-system]
-requires = ["setuptools>=75"]
+requires = ["setuptools==68.2.2", "wheel==0.45.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "cs404-ecommerce-analytics"
 version = "0.1.0"
 description = "Kafka and Spark e-commerce analytics with explicit reliability guarantees"
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 dependencies = []
 
 [project.optional-dependencies]
