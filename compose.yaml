@@ -1,0 +1,162 @@
+name: cs404-commerce
+x-python: &python
+  build:
+    context: .
+    dockerfile: docker/python.Dockerfile
+  environment: &environment
+    DATABASE_URL: postgresql://commerce:${POSTGRES_PASSWORD:?Copy .env.example to .env and set a password}@postgres:5432/commerce
+    KAFKA_BOOTSTRAP: kafka:9092
+    KAFKA_TOPIC: ecommerce.events.v1
+  restart: unless-stopped
+x-spark: &spark
+  build:
+    context: .
+    dockerfile: docker/spark.Dockerfile
+  environment: &spark-env
+    <<: *environment
+    LAKE_ROOT: hdfs://namenode:9000/ecommerce
+    CHECKPOINT_ROOT: hdfs://namenode:9000/checkpoints
+    WATERMARK: ${WATERMARK:-2 minutes}
+    SPARK_SHUFFLE_PARTITIONS: ${SPARK_SHUFFLE_PARTITIONS:-4}
+    MAX_OFFSETS_PER_TRIGGER: ${MAX_OFFSETS_PER_TRIGGER:-10000}
+  restart: unless-stopped
+services:
+  kafka:
+    image: apache/kafka:3.9.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_LOG_RETENTION_HOURS: 168
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes: [kafka-data:/var/lib/kafka/data]
+    healthcheck:
+      test: [CMD-SHELL, '/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1']
+      interval: 10s
+      timeout: 10s
+      retries: 20
+    restart: unless-stopped
+  kafka-init:
+    image: apache/kafka:3.9.0
+    depends_on:
+      kafka: {condition: service_healthy}
+    command: ['/opt/kafka/bin/kafka-topics.sh', '--bootstrap-server', 'kafka:9092', '--create', '--if-not-exists', '--topic', 'ecommerce.events.v1', '--partitions', '3', '--replication-factor', '1']
+  postgres:
+    image: postgres:16.6-bookworm
+    environment:
+      POSTGRES_USER: commerce
+      POSTGRES_DB: commerce
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U commerce -d commerce']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  namenode:
+    build:
+      context: .
+      dockerfile: docker/hadoop.Dockerfile
+    command: [namenode]
+    ports: ['127.0.0.1:9870:9870']
+    volumes: [hdfs-name:/data/name]
+    healthcheck:
+      test: [CMD-SHELL, 'curl -fsS http://localhost:9870/ >/dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+  datanode:
+    build:
+      context: .
+      dockerfile: docker/hadoop.Dockerfile
+    command: [datanode]
+    volumes: [hdfs-data:/data/data]
+    depends_on:
+      namenode: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, 'curl -fsS http://localhost:9864/ >/dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+  hdfs-init:
+    build:
+      context: .
+      dockerfile: docker/hadoop.Dockerfile
+    entrypoint: ['/bin/sh', '-c']
+    command: ['hdfs dfs -fs hdfs://namenode:9000 -mkdir -p /ecommerce /checkpoints && hdfs dfs -fs hdfs://namenode:9000 -chmod -R 777 /ecommerce /checkpoints']
+    depends_on:
+      namenode: {condition: service_healthy}
+      datanode: {condition: service_healthy}
+  spark-master:
+    <<: *spark
+    command: ['/opt/spark/bin/spark-class', 'org.apache.spark.deploy.master.Master', '--host', 'spark-master']
+    ports: ['127.0.0.1:8080:8080']
+    healthcheck:
+      test: [CMD-SHELL, 'python3 -c "import urllib.request; urllib.request.urlopen(\"http://localhost:8080\")"']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  spark-worker:
+    <<: *spark
+    command: ['/opt/spark/bin/spark-class', 'org.apache.spark.deploy.worker.Worker', '--cores', '2', '--memory', '3g', 'spark://spark-master:7077']
+    depends_on:
+      spark-master: {condition: service_healthy}
+  spark-worker-2:
+    <<: *spark
+    profiles: [scale]
+    command: ['/opt/spark/bin/spark-class', 'org.apache.spark.deploy.worker.Worker', '--cores', '2', '--memory', '3g', 'spark://spark-master:7077']
+    depends_on:
+      spark-master: {condition: service_healthy}
+  streaming:
+    <<: *spark
+    command: ['/opt/spark/bin/spark-submit', '--master', '${SPARK_MASTER:-spark://spark-master:7077}', '--driver-memory', '2g', '--executor-memory', '2g', '--conf', 'spark.driver.host=streaming', '--conf', 'spark.jars.ivy=/tmp/ivy', '--packages', 'org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.6', '/app/jobs/streaming.py']
+    depends_on:
+      kafka-init: {condition: service_completed_successfully}
+      hdfs-init: {condition: service_completed_successfully}
+      postgres: {condition: service_healthy}
+      spark-master: {condition: service_healthy}
+      spark-worker: {condition: service_started}
+  producer:
+    <<: *python
+    command: [python, -m, ecommerce.producer, '--rate', '${GENERATOR_RATE:-100}', '--scenario', '${GENERATOR_SCENARIO:-normal}']
+    depends_on:
+      kafka-init: {condition: service_completed_successfully}
+  dashboard:
+    <<: *python
+    command: [streamlit, run, dashboard/app.py, '--server.address=0.0.0.0', '--server.port=8501', '--browser.gatherUsageStats=false']
+    ports: ['127.0.0.1:8501:8501']
+    healthcheck:
+      test: [CMD-SHELL, 'python -c "import urllib.request; urllib.request.urlopen(\"http://localhost:8501/_stcore/health\")"']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      postgres: {condition: service_healthy}
+  batch:
+    <<: *spark
+    profiles: [batch]
+    restart: 'no'
+    command: ['/opt/spark/bin/spark-submit', '--master', 'local[2]', '--driver-memory', '2g', '/app/jobs/batch.py']
+    depends_on:
+      hdfs-init: {condition: service_completed_successfully}
+volumes:
+  kafka-data:
+  postgres-data:
+  hdfs-name:
+  hdfs-data:
