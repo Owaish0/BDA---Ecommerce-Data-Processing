@@ -4,11 +4,15 @@ A course project that processes synthetic shopping events using Apache Kafka, Py
 Spark SQL, Spark Structured Streaming, HDFS, PostgreSQL, and a Streamlit dashboard.
 No machine learning training is required.
 
-**Current status:** the complete [validation run passed](https://github.com/Owaish0/BDA---Ecommerce-Data-Processing/actions/runs/37045071846):
+**Baseline pipeline validation:** the complete [validation run passed](https://github.com/Owaish0/BDA---Ecommerce-Data-Processing/actions/runs/37045071846):
 all 15 tests, 1,585 accepted events across recovery/duplicate/invalid scenarios, exact batch
 reconciliation, historical reports, actual browser recording, and one/two-worker benchmarks.
 The local Windows live dashboard is also verified. See [measured results](docs/RESULTS.md)
 and [progress](docs/PROGRESS.md).
+
+The integrated dashboard controls were verified locally on 14 October 2026:
+18 regression tests passed, and live checks covered pause/resume, speed changes,
+all four event scenarios, and successful historical-report publication.
 
 ## Architecture
 
@@ -60,6 +64,26 @@ The dashboard reads actual PostgreSQL results. It does not fabricate charts when
 pipeline is unavailable. Prices are INR; computations use integer paise.
 
 ## Operation
+
+The main dashboard includes Start/Pause, target speed (1–500 events/second), and a
+flash sale of 1,000 purchase records. Data-quality controls send 50 duplicate pairs,
+100 invalid records, or 100 records timestamped three minutes in the past. Each finite
+action works even when continuous generation is paused. Pause does not cancel an
+already-running finite action. Action activity records queued, running, completed,
+and failed outcomes; completion means Kafka acknowledged delivery, not that Spark has
+finished processing. Recent events are a bounded sample of acknowledged sends.
+
+Historical analysis runs from its existing results section through a dedicated Spark
+worker, with a 15-minute limit. Only one finite event action and one batch action can
+be active at a time. Interrupted actions are marked failed rather than automatically
+replayed. Commands are stored in PostgreSQL; the dashboard has no Docker socket or
+arbitrary shell execution. Speed is a target; delivery and processing rates depend on
+machine capacity. Generator settings persist in PostgreSQL across restarts.
+
+Quality counters shown by Spark describe the latest microbatch and may return to zero
+in the next batch. Late-event acceptance depends on the actual watermark, not solely
+on timestamp age. The Kafka-confirmed sends counter covers the managed producer only
+and must not be equated with accepted unique events or the current sales horizon.
 
 ```sh
 docker compose ps

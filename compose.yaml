@@ -134,9 +134,16 @@ services:
       spark-worker: {condition: service_started}
   producer:
     <<: *python
-    command: [python, -m, ecommerce.producer, '--rate', '${GENERATOR_RATE:-100}', '--scenario', '${GENERATOR_SCENARIO:-normal}']
+    command: [python, -m, ecommerce.managed_producer]
     depends_on:
       kafka-init: {condition: service_completed_successfully}
+      postgres: {condition: service_healthy}
+  batch-worker:
+    <<: *spark
+    command: [python3, -m, ecommerce.batch_worker]
+    depends_on:
+      postgres: {condition: service_healthy}
+      hdfs-init: {condition: service_completed_successfully}
   dashboard:
     <<: *python
     command: [streamlit, run, dashboard/app.py, '--server.address=0.0.0.0', '--server.port=8501', '--browser.gatherUsageStats=false']
