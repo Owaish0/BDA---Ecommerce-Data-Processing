@@ -14,9 +14,11 @@ def main():
             time.sleep(2)
             continue
         try:
+            with control.connect() as conn:
+                source = conn.execute('SELECT source FROM generator_control WHERE id=1').fetchone()['source']
             with tempfile.TemporaryFile() as log:
                 result = subprocess.run(
-                    ['/opt/spark/bin/spark-submit', '--master', 'local[2]', '--driver-memory', '1g', '/app/jobs/batch.py'],
+                    ['/opt/spark/bin/spark-submit', '--master', 'local[2]', '--driver-memory', '1g', '/app/jobs/batch.py', '--data-source', source],
                     stdout=log, stderr=subprocess.STDOUT, timeout=900, check=False)
             control.finish(action['id'], 'completed' if result.returncode == 0 else 'failed',
                            'Historical report updated.' if result.returncode == 0 else

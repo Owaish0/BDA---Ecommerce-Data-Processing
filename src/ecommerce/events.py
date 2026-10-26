@@ -6,7 +6,7 @@ import json
 import random
 import uuid
 
-TYPES = {"view", "search", "cart", "purchase"}
+TYPES = {"view", "search", "cart", "purchase", "remove_from_cart"}
 CATALOG = [
     ("P001", "Headphones", "Electronics", 249900),
     ("P002", "Smartwatch", "Electronics", 399900),

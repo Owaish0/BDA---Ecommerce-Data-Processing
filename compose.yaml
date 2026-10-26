@@ -7,6 +7,7 @@ x-python: &python
     DATABASE_URL: postgresql://commerce:${POSTGRES_PASSWORD:?Copy .env.example to .env and set a password}@postgres:5432/commerce
     KAFKA_BOOTSTRAP: kafka:9092
     KAFKA_TOPIC: ecommerce.events.v1
+    DEFAULT_SOURCE: ${DEFAULT_SOURCE:-synthetic}
   restart: unless-stopped
 x-spark: &spark
   build:
@@ -134,6 +135,7 @@ services:
       spark-worker: {condition: service_started}
   producer:
     <<: *python
+    volumes: ['./data:/app/data:ro']
     command: [python, -m, ecommerce.managed_producer]
     depends_on:
       kafka-init: {condition: service_completed_successfully}
@@ -146,6 +148,7 @@ services:
       hdfs-init: {condition: service_completed_successfully}
   dashboard:
     <<: *python
+    volumes: ['./data:/app/data:ro']
     command: [streamlit, run, dashboard/app.py, '--server.address=0.0.0.0', '--server.port=8501', '--browser.gatherUsageStats=false']
     ports: ['127.0.0.1:8501:8501']
     healthcheck:

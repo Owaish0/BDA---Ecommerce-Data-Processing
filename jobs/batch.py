@@ -11,6 +11,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--source", default=os.getenv("LAKE_ROOT", "hdfs://namenode:9000/ecommerce") + "/silver")
 parser.add_argument("--output", default=os.getenv("LAKE_ROOT", "hdfs://namenode:9000/ecommerce") + "/batch")
 parser.add_argument("--sample-fraction", type=float, default=0.1)
+parser.add_argument('--data-source', choices=['real', 'synthetic'], default='synthetic')
 args = parser.parse_args()
 if not 0 < args.sample_fraction <= 1:
     parser.error("sample fraction must be in (0, 1]")
@@ -36,7 +37,10 @@ try:
             raise RuntimeError(
                 f"Found {conflicts} event IDs with conflicting payloads. Resolve them before claiming exact historical totals."
             )
-    events = s.read.parquet(args.source).dropDuplicates(["event_id"]).cache()
+    events = s.read.option('mergeSchema', 'true').parquet(args.source)
+    events = events.filter(F.col('product_id').startswith('rees46:') if args.data_source == 'real'
+                           else ~F.col('product_id').startswith('rees46:')).dropDuplicates(['event_id']).cache()
+    events = events.withColumn('analysis_ts', F.to_timestamp('source_event_time') if args.data_source == 'real' else F.col('event_ts'))
     events.createOrReplaceTempView("events")
     sales = metrics(events)
     sales.write.mode("overwrite").parquet(args.output + "/windows")
@@ -66,20 +70,22 @@ try:
     # An observed session funnel: purchase must occur after the first cart event.
     # This is not causal attribution and not the same as purchases/cart-event ratio.
     funnel = s.sql("""WITH sessions AS (
-       SELECT session_id, min(CASE WHEN event_type='cart' THEN event_ts END) AS first_cart,
-       max(CASE WHEN event_type='purchase' THEN event_ts END) AS last_purchase
-       FROM events GROUP BY session_id)
+       SELECT session_id, min(CASE WHEN event_type='cart' THEN analysis_ts END) AS first_cart,
+       max(CASE WHEN event_type='purchase' THEN analysis_ts END) AS last_purchase
+       FROM events WHERE coalesce(session_observed,true) GROUP BY session_id)
        SELECT count(first_cart) AS cart_sessions,
        sum(CASE WHEN last_purchase >= first_cart THEN 1 ELSE 0 END) AS converted_sessions
        FROM sessions""")
     funnel.write.mode("overwrite").json(args.output + "/session_funnel")
     summary = {
+        'data_source': args.data_source,
         "source": args.source,
         "totals": totals.first().asDict(),
         "sampling": sample.first().asDict(),
         "session_funnel": funnel.first().asDict(),
         "conflicting_event_ids": conflicts,
-        "definition": "Exact unique-event historical snapshot. One purchase event is one single-product order.",
+        "definition": ('Real dataset: sums recorded purchase prices; quantities and order IDs unavailable.'
+                       if args.data_source == 'real' else 'Synthetic single-product orders.'),
     }
     if os.getenv("DATABASE_URL"):
         publish_batch_report(str(uuid.uuid4()), summary)

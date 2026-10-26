@@ -7,12 +7,13 @@ from psycopg.rows import dict_row
 import streamlit as st
 from ecommerce.events import CATALOG
 from ecommerce import control
+from ecommerce.replay import metadata
 
 PRODUCT_NAMES = {item[0]: item[1] for item in CATALOG}
 
 st.set_page_config(page_title="CS404 Commerce Pulse", page_icon="📊", layout="wide")
 st.title("Commerce Pulse")
-st.caption("CS404 · Kafka + Spark · Synthetic e-commerce analytics · No machine learning")
+st.caption("CS404 · Kafka + Spark · E-commerce analytics · No machine learning")
 
 
 def load(sql, params=()):
@@ -26,6 +27,20 @@ except psycopg.Error:
     st.error('Waiting for the analytics database.')
     st.stop()
 
+SOURCE = load('SELECT source FROM generator_control WHERE id=1')[0]['source']
+REAL = SOURCE == 'real'
+MONEY = 'Recorded purchase value (source units)' if REAL else 'Revenue (INR)'
+manifest = metadata()
+st.caption('Viewing: ' + ('REES46 historical events replayed now' if REAL else 'Synthetic test events'))
+if REAL:
+    st.info('Real historical events, replayed at the selected speed. Original timestamps are preserved. '
+            'Prices use unspecified source currency units; quantity and order totals are unavailable. '
+            'Charts use replay time, so they do not describe the original store’s minute-by-minute sales.')
+    if manifest:
+        st.caption(f"{manifest['accepted_rows']:,} events prepared from {manifest['source_file']} · "
+                   f"{manifest['first_event_time']} to {manifest['last_event_time']} · Chronological prefix, not a random sample.")
+    st.markdown('[Dataset and attribution](https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store) · [REES46](https://rees46.com)')
+
 
 def submit(kind):
     try:
@@ -35,6 +50,8 @@ def submit(kind):
         st.toast('An action is already queued or running. Wait for it to finish.')
     except psycopg.Error:
         st.error('Could not queue the action. Check the database connection.')
+    except ValueError as exc:
+        st.warning(str(exc))
 
 
 @st.fragment(run_every='3s')
@@ -43,8 +60,27 @@ def generation_controls():
         state = load('SELECT * FROM generator_control WHERE id=1')[0]
         active = load("SELECT * FROM control_actions WHERE status IN ('queued','running') AND kind<>'batch'")
         healthy = state['heartbeat'] and (datetime.now(timezone.utc)-state['heartbeat']).total_seconds() < 15
+        source = st.selectbox('Event source', ['Real dataset replay', 'Synthetic events'],
+                              index=0 if state['source']=='real' else 1)
+        requested = 'real' if source == 'Real dataset replay' else 'synthetic'
+        if st.button('Use selected source', disabled=state['enabled'] or bool(active) or requested == state['source']):
+            try:
+                if requested == 'real' and not manifest:
+                    raise ValueError('Prepare the official dataset first using scripts/prepare_real_dataset.py.')
+                control.set_source(requested)
+                st.rerun()
+            except ValueError as exc:
+                st.warning(str(exc))
+        st.caption('Pause before switching sources. Real and synthetic analytics are kept separate.')
+        if state['source']=='real' and manifest:
+            total = manifest['accepted_rows']
+            st.progress(min(1.0, state['replay_position']/total),
+                        text=f"Replay: {state['replay_position']:,} / {total:,} records")
+            if state['replay_position'] >= total:
+                st.success('Replay complete. The source is exhausted; records are not silently looped.')
         cols = st.columns([1, 1, 2, 2])
-        if cols[0].button('Start events', disabled=state['enabled'] or not healthy, use_container_width=True):
+        exhausted = state['source']=='real' and (not manifest or state['replay_position'] >= manifest['accepted_rows'])
+        if cols[0].button('Start events', disabled=state['enabled'] or not healthy or exhausted, use_container_width=True):
             load('UPDATE generator_control SET enabled=true WHERE id=1 RETURNING id')
             st.rerun()
         if cols[1].button('Pause events', disabled=not state['enabled'] or not healthy, use_container_width=True):
@@ -60,7 +96,7 @@ def generation_controls():
                    + ' · Counts cover this controlled generator, including duplicates and invalid records. Pause allows in-flight records to finish.')
         if state['error']:
             st.error(state['error'])
-        if st.button('⚡ Flash sale · 1,000 purchases', disabled=bool(active) or not healthy):
+        if st.button('⚡ Flash sale · 1,000 purchases', disabled=bool(active) or not healthy or state['source']=='real'):
             submit('burst')
     except psycopg.Error:
         st.warning('Generator controls temporarily unavailable.')
@@ -68,7 +104,7 @@ def generation_controls():
 
 generation_controls()
 minutes = st.selectbox('Sales horizon (minutes)', [5, 15, 30, 60], index=1)
-st.caption('Generator → Kafka → Spark → HDFS lake + PostgreSQL → Dashboard · UTC event time · INR · Synthetic data')
+st.caption('Event source → Kafka → Spark → HDFS lake + PostgreSQL → Dashboard · UTC replay/event time')
 
 
 @st.fragment(run_every="5s")
@@ -76,15 +112,17 @@ def live():
     try:
         rows = load(
             """SELECT * FROM window_metrics WHERE query_name='sales-1m-v1'
-                       AND window_start >= now()-(%s * interval '1 minute') ORDER BY window_start""",
-            (minutes,),
+                       AND window_start >= now()-(%s * interval '1 minute')
+                       AND (product_id LIKE 'rees46:%%')=%s ORDER BY window_start""",
+            (minutes, REAL),
         )
         progress = load("SELECT * FROM query_progress ORDER BY query_name")
-        historical = load("SELECT * FROM batch_reports ORDER BY created_at DESC LIMIT 1")
+        historical = load("SELECT * FROM batch_reports WHERE coalesce(summary->>'data_source','synthetic')=%s ORDER BY created_at DESC LIMIT 1", (SOURCE,))
         trending = load("""SELECT product_id, sum(views) AS views, sum(purchases) AS purchases
           FROM window_metrics WHERE query_name='trending-5m-v1'
           AND window_start=(SELECT max(window_start) FROM window_metrics WHERE query_name='trending-5m-v1')
-          GROUP BY product_id ORDER BY views DESC LIMIT 10""")
+          AND (product_id LIKE 'rees46:%%')=%s
+          GROUP BY product_id ORDER BY views DESC LIMIT 10""", (REAL,))
     except psycopg.Error:
         st.error("Analytics database is unavailable. Check PostgreSQL health and DATABASE_URL.")
         return
@@ -98,26 +136,28 @@ def live():
         events, purchases, revenue = [int(df[c].sum()) for c in ["events", "purchases", "revenue_paise"]]
         columns = st.columns(4)
         columns[0].metric("Events in horizon", f"{events:,}")
-        columns[1].metric("Purchases", f"{purchases:,}")
-        columns[2].metric("Revenue", f"₹{revenue/100:,.2f}")
-        columns[3].metric("Average order value", f"₹{revenue/100/purchases:,.2f}" if purchases else "—")
+        columns[1].metric('Purchase records' if REAL else 'Purchases', f"{purchases:,}")
+        prefix = '' if REAL else '₹'
+        columns[2].metric('Recorded purchase value' if REAL else 'Revenue', f"{prefix}{revenue/100:,.2f}")
+        columns[3].metric('Mean recorded purchase price' if REAL else 'Average order value', f"{prefix}{revenue/100/purchases:,.2f}" if purchases else '—')
         st.caption(
-            "One purchase event represents one single-product order. Current windows are provisional until the watermark passes."
+            'Purchase records are not order counts; values sum recorded prices without inferring quantities.' if REAL else
+            'One synthetic purchase event represents one single-product order. Current windows are provisional until the watermark passes.'
         )
         series = df.groupby("window_start", as_index=False)[["revenue_paise", "purchases"]].sum()
-        series["Revenue (INR)"] = series["revenue_paise"] / 100
+        series[MONEY] = series['revenue_paise'] / 100
         left, right = st.columns([2, 1])
         left.plotly_chart(
             px.line(
-                series, x="window_start", y="Revenue (INR)", markers=True,
-                title="Revenue per 1-minute window", labels={"window_start": "Window start (UTC)"}
+                series, x='window_start', y=MONEY, markers=True,
+                title='Recorded purchase value per replay minute' if REAL else 'Revenue per 1-minute window', labels={'window_start': 'Window start (UTC)'}
             ),
             use_container_width=True,
         )
         categories = df.groupby("category", as_index=False)["revenue_paise"].sum()
-        categories["Revenue (INR)"] = categories["revenue_paise"] / 100
+        categories[MONEY] = categories['revenue_paise'] / 100
         right.plotly_chart(
-            px.bar(categories, x="category", y="Revenue (INR)", title="Category sales",
+            px.bar(categories, x="category", y=MONEY, title="Category purchase value" if REAL else 'Category sales',
                    labels={"category": "Category"}),
             use_container_width=True,
         )
@@ -186,7 +226,9 @@ def live():
     )
     st.subheader('Data quality')
     active = load("SELECT * FROM control_actions WHERE status IN ('queued','running')")
-    busy = any(row['kind'] != 'batch' for row in active)
+    busy = REAL or any(row['kind'] != 'batch' for row in active)
+    if REAL:
+        st.caption('Artificial scenarios are disabled in real-data mode. Pause and switch to Synthetic events to use them.')
     buttons = st.columns(3)
     for col, label, kind in zip(buttons, ['Send duplicates · 50 pairs', 'Send invalid · 100 records', 'Send late · 100 records'],
                                 ['duplicates', 'invalid', 'late']):
@@ -207,14 +249,15 @@ def live():
     output_rows = quarantine.get('sink', {}).get('numOutputRows', -1)
     st.caption(f"Quarantine rows written in latest batch: {output_rows if output_rows >= 0 else 'not reported by the file sink'}. These are batch metrics, not lifetime totals.")
     st.subheader('Recent generated events')
-    recent = load('SELECT payload, delivered_at FROM recent_events ORDER BY id DESC LIMIT 20')
+    recent = load("SELECT payload, delivered_at FROM recent_events WHERE coalesce(payload->>'data_source','synthetic')=%s ORDER BY id DESC LIMIT 20", (SOURCE,))
     st.caption('Sample of Kafka-confirmed sends, before Spark validation. Invalid events are deliberately visible here.')
     st.dataframe([{'Delivered (UTC)': r['delivered_at'],
                    'Event': r['payload'].get('event_type'),
-                   'Product': PRODUCT_NAMES.get(r['payload'].get('product_id'), 'Missing'),
+                   'Product': PRODUCT_NAMES.get(r['payload'].get('product_id'), r['payload'].get('product_id', 'Missing')),
                    'Event time': r['payload'].get('event_time'),
-                   'Quantity': r['payload'].get('quantity'),
-                   'Unit price (INR)': r['payload'].get('price_paise', 0) / 100,
+                   'Original time': r['payload'].get('source_event_time'),
+                   'Quantity': None if REAL else r['payload'].get('quantity'),
+                   'Recorded price (source units)' if REAL else 'Unit price (INR)': r['payload'].get('price_paise', 0) / 100,
                    'Event ID': r['payload'].get('event_id', 'Missing')} for r in recent], use_container_width=True)
     st.subheader('Action activity')
     st.dataframe(load('SELECT id,kind,status,detail,created_at FROM control_actions ORDER BY id DESC LIMIT 10'), use_container_width=True)
@@ -242,7 +285,7 @@ def live():
         comparison = [
             {"Metric": "Events", "Exact": totals["events"], "Sample estimate": sample["estimated_events"]},
             {
-                "Metric": "Revenue (INR)",
+                "Metric": MONEY,
                 "Exact": (totals["revenue_paise"] or 0) / 100,
                 "Sample estimate": (sample["estimated_revenue_paise"] or 0) / 100,
             },

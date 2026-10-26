@@ -1,8 +1,14 @@
 # CS404 Real-Time E-Commerce Analytics Platform
 
-A course project that processes synthetic shopping events using Apache Kafka, PySpark,
+A course project that processes real historical shopping events and synthetic test events using Apache Kafka, PySpark,
 Spark SQL, Spark Structured Streaming, HDFS, PostgreSQL, and a Streamlit dashboard.
 No machine learning training is required.
+
+**Real dataset replay:** [setup, attribution and metric definitions](docs/REAL_DATA.md).
+The dashboard can replay a one-million-event prefix of the official REES46 October
+2019 dataset with pause/resume, adjustable speed and persistent progress. Real and
+synthetic results are separated; source purchase prices are not labelled as INR or
+complete order revenue. Downloaded data stays local and is not committed to GitHub.
 
 **Baseline pipeline validation:** the complete [validation run passed](https://github.com/Owaish0/BDA---Ecommerce-Data-Processing/actions/runs/37045071846):
 all 15 tests, 1,585 accepted events across recovery/duplicate/invalid scenarios, exact batch

@@ -16,6 +16,12 @@ EVENT_SCHEMA = T.StructType(
         T.StructField("category", T.StringType()),
         T.StructField("quantity", T.LongType()),
         T.StructField("price_paise", T.LongType()),
+        T.StructField("data_source", T.StringType()),
+        T.StructField("source_event_time", T.StringType()),
+        T.StructField("currency", T.StringType()),
+        T.StructField("session_observed", T.BooleanType()),
+        T.StructField("quantity_observed", T.BooleanType()),
+        T.StructField("source_row", T.LongType()),
     ]
 )
 
@@ -37,7 +43,7 @@ def spark(name):
 def parsed(raw):
     frame = raw.withColumn("e", F.from_json("raw_json", EVENT_SCHEMA)).select("*", "e.*").drop("e")
     frame = frame.withColumn("event_ts", F.to_timestamp("event_time"))
-    valid = (F.col("schema_version") == 1) & F.col("event_type").isin("view", "search", "cart", "purchase")
+    valid = (F.col("schema_version") == 1) & F.col("event_type").isin("view", "search", "cart", "purchase", "remove_from_cart")
     for key in ["event_id", "user_id", "session_id", "product_id", "category"]:
         valid = valid & F.col(key).isNotNull() & (F.length(F.trim(F.col(key))) > 0) & (F.length(key) <= 128)
     valid = (

@@ -8,6 +8,7 @@ from confluent_kafka import Producer
 from psycopg.types.json import Jsonb
 from . import control
 from .events import EventGenerator
+from .replay import read_batch
 
 
 def scenario_events(generator, kind, count=100):
@@ -45,10 +46,23 @@ def main():
         action = None
         try:
             with control.connect() as conn:
-                state = conn.execute('SELECT * FROM generator_control WHERE id=1').fetchone()
-            action = control.claim()
-            events = scenario_events(generator, action['kind'], 1000 if action['kind'] == 'burst' else 100) if action else (
-                scenario_events(generator, 'normal', state['rate']) if state['enabled'] else [])
+                state = conn.execute('SELECT * FROM generator_control WHERE id=1 FOR UPDATE').fetchone()
+                pending = None
+                if state['source'] == 'real' and state['enabled']:
+                    pending = state['replay_pending']
+                    if not pending:
+                        position, events = read_batch(state['replay_position'], state['rate'])
+                        if events:
+                            pending = {'position': position, 'events': events}
+                            conn.execute('UPDATE generator_control SET replay_pending=%s WHERE id=1', (Jsonb(pending),))
+                        else:
+                            conn.execute('UPDATE generator_control SET enabled=false WHERE id=1')
+            if state['source'] == 'real':
+                events = pending['events'] if pending else []
+            else:
+                action = control.claim()
+                events = scenario_events(generator, action['kind'], 1000 if action['kind'] == 'burst' else 100) if action else (
+                    scenario_events(generator, 'normal', state['rate']) if state['enabled'] else [])
             confirmed = []
             errors = []
             for event in events:
@@ -68,6 +82,9 @@ def main():
                 for event in confirmed[-20:]:
                     conn.execute('INSERT INTO recent_events(payload) VALUES(%s)', (Jsonb(event),))
                 conn.execute('DELETE FROM recent_events WHERE id < (SELECT coalesce(max(id),0)-199 FROM recent_events)')
+                if pending and not errors and not remaining:
+                    conn.execute('UPDATE generator_control SET replay_position=%s,replay_pending=NULL WHERE id=1',
+                                 (pending['position'],))
             if errors or remaining:
                 raise RuntimeError('Kafka delivery incomplete; some events may have arrived. Check pipeline before retrying.')
             if action:
@@ -83,7 +100,7 @@ def main():
             if action:
                 control.finish(action['id'], 'failed', str(exc)[:400])
             with control.connect() as conn:
-                conn.execute('UPDATE generator_control SET error=%s,heartbeat=now() WHERE id=1', (str(exc)[:400],))
+                conn.execute('UPDATE generator_control SET enabled=false,error=%s,heartbeat=now() WHERE id=1', (str(exc)[:400],))
             time.sleep(2)
         time.sleep(max(0, 1 - (time.monotonic() - started)))
     producer.flush(20)
