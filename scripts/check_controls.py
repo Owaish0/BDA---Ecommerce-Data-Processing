@@ -20,6 +20,7 @@ def state():
 
 app = AppTest.from_file('/app/dashboard/app.py', default_timeout=30).run()
 assert not app.exception, app.exception
+app.radio(key='page').set_value('Replay controls').run()
 
 
 def click(label):
@@ -50,6 +51,7 @@ try:
         ('Send invalid · 100 records', 'invalid', 100),
         ('Send late · 100 records', 'late', 100),
     ]:
+        app.radio(key='page').set_value('Replay controls' if kind == 'burst' else 'Data quality').run()
         before = state()['delivered']
         click(label)
         def done():
@@ -61,6 +63,7 @@ try:
         wait_for(done)
         assert state()['delivered'] - before == expected
         print('PASS', kind, expected, flush=True)
+    app.radio(key='page').set_value('Historical report').run()
     click('Run historical analysis')
     def batch_done():
         with control.connect() as conn:

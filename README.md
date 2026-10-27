@@ -138,3 +138,7 @@ See [requirements](docs/REQUIREMENTS.md), [reliability guarantees](docs/RELIABIL
 | Md Rezaul | 2023BCS-035 |
 | Owaish Ansari | 2023BCS-043 |
 | Rajat Kumar | 2023BCS-053 |
+
+## Customer analytics expansion
+
+Historical customer analysis is separate from live Kafka replay. The dashboard now has dedicated Customer behaviour, Shopping journeys, Product performance and Analysis methods pages. Full-month imports and Spark summaries are being validated first on October 2019 before expanding to April 2020. See [historical import, metric definitions and validation](docs/HISTORICAL_ANALYTICS.md).

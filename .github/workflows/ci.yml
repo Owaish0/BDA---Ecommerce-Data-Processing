@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: '3.11'}
-      - run: pip install -e '.[test,pipeline]'
+      - run: pip install -e '.[test,pipeline,history]'
       - run: python -m pytest -q
         env:
           TEST_DATABASE_URL: postgresql://commerce:test-only@localhost:5432/test

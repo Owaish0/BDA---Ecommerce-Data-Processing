@@ -27,7 +27,7 @@ def main():
         video = page.video
         try:
             page.goto("http://localhost:8501", wait_until="domcontentloaded")
-            page.get_by_text("Revenue per 1-minute window", exact=True).wait_for(timeout=60000)
+            page.get_by_text("What types of actions occurred?", exact=True).wait_for(timeout=60000)
             time.sleep(5)  # Reading time in the recorded demonstration.
             with open("reports/demo/producer.log", "w") as log:
                 producer = subprocess.Popen(
@@ -45,11 +45,11 @@ def main():
                         producer.terminate()
                         producer.wait(timeout=15)
             time.sleep(8)
-            page.get_by_text("Recent product activity", exact=True).scroll_into_view_if_needed()
+            page.get_by_role("radio", name="Products & categories", exact=True).check()
             time.sleep(8)
-            page.get_by_text("Pipeline health", exact=True).scroll_into_view_if_needed()
+            page.get_by_role("radio", name="Data quality", exact=True).check()
             time.sleep(6)
-            page.get_by_text("Historical analysis and approximations", exact=True).scroll_into_view_if_needed()
+            page.get_by_role("radio", name="Historical report", exact=True).check()
             time.sleep(10)
         finally:
             context.close()

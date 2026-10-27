@@ -24,6 +24,7 @@ original = state()
 assert original['source'] == 'real'
 app = AppTest.from_file('/app/dashboard/app.py', default_timeout=30).run()
 assert not app.exception, app.exception
+app.radio(key='page').set_value('Replay controls').run()
 try:
     if state()['enabled']:
         next(b for b in app.button if b.label == 'Pause events').click().run()
@@ -66,6 +67,7 @@ try:
     app.run()
     assert not app.exception and state()['replay_position'] == position
     print('PASS pause, source switching, cursor preservation and scenario isolation', flush=True)
+    app.radio(key='page').set_value('Historical report').run()
     next(b for b in app.button if b.label == 'Run historical analysis').click().run()
     assert not app.exception
     def historical_done():
