@@ -1,0 +1,19 @@
+# Docker Desktop x86 emulation profile for Apple Silicon.
+# bootstrap.sh saves this overlay in the local .env COMPOSE_FILE setting.
+x-compat: &compat
+  platform: linux/amd64
+services:
+  kafka: *compat
+  kafka-init: *compat
+  postgres: *compat
+  namenode: *compat
+  datanode: *compat
+  hdfs-init: *compat
+  spark-master: *compat
+  spark-worker: *compat
+  spark-worker-2: *compat
+  streaming: *compat
+  producer: *compat
+  batch-worker: *compat
+  dashboard: *compat
+  batch: *compat

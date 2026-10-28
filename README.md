@@ -43,35 +43,95 @@ An optional second worker demonstrates scaling. Bronze preserves the Kafka paylo
 partition, offset, and ingestion timestamp. Silver stores validated events with
 duplicate suppression. Separate queries keep deduplication and aggregation state isolated.
 
-## Quick start on Windows
+## Run from a fresh clone (Windows or macOS)
 
-Prerequisites: Docker Desktop running with Linux containers and Compose v2. Budget
-approximately 12 GB for Docker for the full stack; actual requirements must be measured.
-The optional extra worker needs more memory. Initial builds download Spark, Hadoop,
-Python packages, and the Kafka connector.
+Install Git and Docker Desktop first. Open Docker Desktop and wait until its engine
+is running. On Windows use Linux containers with the WSL 2 backend. Allocate about
+12 GB RAM to Docker for the full stack and leave additional RAM for your operating
+system. First builds need internet access and download Spark, Hadoop and packages;
+allow several minutes and enough disk space for images and growing event storage.
+Python, Java, Kafka and Spark do not need to be installed on the host.
 
-```powershell
-cd <project-directory>
-./scripts/bootstrap.ps1
-# If Docker is not on PATH:
-./scripts/bootstrap.ps1 -DockerPath "$env:LOCALAPPDATA\Programs\DockerDesktop\resources\bin\docker.exe"
+```sh
+git clone https://github.com/Owaish0/BDA-Customer-Descriptive-Analysis.git
+cd BDA-Customer-Descriptive-Analysis
 ```
 
-Bootstrap creates an ignored `.env` with a random local database password, checks Docker,
-and builds the services. Wait for initial builds and startup microbatches.
+**Windows — PowerShell:**
 
-Open:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\bootstrap.ps1
+```
 
-- Dashboard: http://localhost:8501
-- Spark master: http://localhost:8080
-- HDFS NameNode: http://localhost:9870
+This bypass applies only to that script process. If Docker cannot be found, add
+`-DockerPath "C:\full\path\to\docker.exe"` to the command.
 
-The dashboard reads actual PostgreSQL results. It does not fabricate charts when the
-pipeline is unavailable. Prices are INR; computations use integer paise.
+**macOS — Terminal (Intel or Apple Silicon):**
+
+```sh
+bash scripts/bootstrap.sh
+```
+
+Apple Silicon uses the included `compose.apple.yaml` x86 emulation profile. The
+bootstrap records it in the ignored local `.env`, so subsequent Compose commands
+use the same profile. Emulation may be slower than Intel/Windows x86. This profile
+has been configuration-checked; execution on physical Mac hardware is not yet verified.
+
+Both scripts create `.env` with a random database password, preserve existing
+settings, create the local data folder, and build/start the services. Never commit
+`.env`. Conservative resource defaults are in `.env.example`; optional tuning is
+explained in [performance notes](docs/PERFORMANCE.md).
+
+Open [the dashboard](http://localhost:8501), [Spark](http://localhost:8080), or
+[HDFS](http://localhost:9870). Allow the first Spark batches to finish. New installs
+start with synthetic events. In Overview choose **Synthetic data** to see their
+metrics. Use **Replay controls** to pause/start and change speed. Historical and
+real-replay views need the optional preparation below; a fresh clone has no saved
+customer reports or previous machine's data.
+
+### Add the real replay sample (optional)
+
+From the project root after bootstrap, run this same command in PowerShell or macOS Terminal:
+
+```sh
+docker compose run --rm --no-deps --volume "./data:/app/data" producer python scripts/prepare_real_dataset.py --rows 1000000
+```
+
+This downloads a bounded prefix of the published October dataset. If the provider
+requires login or changes its download endpoint, download the original October CSV
+from Kaggle, put it in `data/2019-Oct.csv`, and append
+`--csv data/2019-Oct.csv` to the preparation command. See [dataset details](docs/REAL_DATA.md).
+Pause generation, choose **Real dataset replay**, click **Use selected source**,
+then **Start events**. A completed sample can be replayed again using its existing
+button. Raw data, reports and Docker volumes stay local and are deliberately excluded
+from Git; the source preparation scripts are included.
+
+Full historical Customer behaviour, Shopping journeys and Product performance
+reports require a full-month import and Spark analysis, separately from replay.
+Follow [historical analytics setup](docs/HISTORICAL_ANALYTICS.md); importing seven
+months is optional and requires substantial time and storage.
+
+### Stop, resume and troubleshoot
+
+```sh
+docker compose ps
+docker compose logs --tail=80 streaming producer
+docker compose down
+docker compose up -d
+```
+
+`down` keeps stored data. Avoid `down -v` unless intentionally deleting it.
+If ports 8501, 8080 or 9870 are occupied, stop the other instance or change the host
+ports in your local Compose configuration. If HDFS initialization fails, inspect
+`docker compose logs --tail=80 hdfs-init namenode datanode`, then rerun bootstrap.
+On Windows, confirm WSL 2 and hardware virtualization are available; on Apple Silicon,
+confirm Docker Desktop supports x86 emulation. Machines with limited RAM can fail
+or process slowly. Database results and event generation are independent of the
+browser; closing a tab does not stop the containers.
 
 ## Operation
 
-The main dashboard includes Start/Pause, target speed (1–500 events/second), and a
+The main dashboard includes Start/Pause, target speed (1–2,000 events/second), and a
 flash sale of 1,000 purchase records. Data-quality controls send 50 duplicate pairs,
 100 invalid records, or 100 records timestamped three minutes in the past. Each finite
 action works even when continuous generation is paused. Pause does not cancel an

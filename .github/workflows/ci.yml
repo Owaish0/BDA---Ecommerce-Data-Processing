@@ -25,6 +25,9 @@ jobs:
       - run: python -m compileall -q src jobs dashboard scripts
       - run: docker compose config --quiet
         env: {POSTGRES_PASSWORD: test-only}
+      - run: bash -n scripts/bootstrap.sh
+      - run: docker compose -f compose.yaml -f compose.apple.yaml config --quiet
+        env: {POSTGRES_PASSWORD: test-only}
       - run: ruff check .
   integration:
     runs-on: ubuntu-latest

@@ -22,6 +22,7 @@ if (!(Test-Path -LiteralPath '.env')) {
     $localPassword = [BitConverter]::ToString($secretBytes).Replace('-', '')
     (Get-Content -LiteralPath '.env.example' -Raw).Replace('replace-with-a-local-password', $localPassword) | Set-Content -LiteralPath '.env'
 }
+New-Item -ItemType Directory -Force -Path data | Out-Null
 & $DockerPath info
 if ($LASTEXITCODE -ne 0) { throw 'Docker engine is unavailable. Start Docker Desktop with Linux containers.' }
 & $DockerPath compose config --quiet
