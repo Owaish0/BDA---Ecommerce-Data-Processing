@@ -7,8 +7,6 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import streamlit as st
 
-ICONS = ["◈", "▷", "▥", "✓", "▤", "⌘", "◎", "↗", "◇", "∑"]
-
 
 def apply():
     st.markdown(f"<style>{Path(__file__).with_name('theme.css').read_text()}</style>", unsafe_allow_html=True)
@@ -32,7 +30,7 @@ def apply():
 
 def brand():
     st.markdown(
-        '<div class="brand"><span class="brand-mark">◈</span><div>Commerce Pulse'
+        '<div class="brand"><span class="brand-mark">CP</span><div>Commerce Pulse'
         "<small>COMMERCE INTELLIGENCE</small></div></div>",
         unsafe_allow_html=True,
     )

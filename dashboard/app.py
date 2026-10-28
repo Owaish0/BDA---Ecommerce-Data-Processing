@@ -696,7 +696,6 @@ with st.sidebar:
         "Workspace",
         PAGES,
         key="page",
-        format_func=lambda name: f"{appearance.ICONS[PAGES.index(name)]}  {name}",
     )
     st.divider()
     st.caption("CS404 · Big Data Analytics\n\nKafka · Spark · HDFS · PostgreSQL")
