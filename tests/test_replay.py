@@ -51,3 +51,16 @@ def test_missing_session_is_marked_and_cart_removal_preserved():
     result = normalize(source, 1)
     assert result['session_observed'] is False
     assert result['event_type'] == 'remove_from_cart'
+
+def test_repeated_replay_has_new_ids_but_preserves_source(tmp_path):
+    path = tmp_path / 'events.sqlite'
+    with sqlite3.connect(path) as conn:
+        conn.execute('CREATE TABLE events(position INTEGER PRIMARY KEY,payload TEXT)')
+        conn.execute('INSERT INTO events VALUES(1,?)', (json.dumps(normalize(row(),1)),))
+    _, original = read_batch(0,1,path)
+    _, again = read_batch(0,1,path,run_id=1)
+    _, retry = read_batch(0,1,path,run_id=1)
+    assert original[0]['event_id'] != again[0]['event_id'] == retry[0]['event_id']
+    assert original[0]['session_id'] != again[0]['session_id']
+    assert original[0]['product_id'] == again[0]['product_id']
+    assert original[0]['source_event_time'] == again[0]['source_event_time']

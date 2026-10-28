@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS generator_control (
 ALTER TABLE generator_control ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'synthetic';
 ALTER TABLE generator_control ADD COLUMN IF NOT EXISTS replay_position bigint NOT NULL DEFAULT 0;
 ALTER TABLE generator_control ADD COLUMN IF NOT EXISTS replay_pending jsonb;
+ALTER TABLE generator_control ADD COLUMN IF NOT EXISTS replay_run bigint NOT NULL DEFAULT 0;
 CREATE TABLE IF NOT EXISTS control_actions (
  id bigserial PRIMARY KEY, kind text NOT NULL, status text NOT NULL DEFAULT 'queued',
  detail text NOT NULL DEFAULT '', created_at timestamptz NOT NULL DEFAULT now(),
@@ -73,3 +74,18 @@ def recover(batch=False):
     with connect() as conn:
         conn.execute("""UPDATE control_actions SET status='failed', detail='Worker restarted; action interrupted. Review results before retrying.',
           updated_at=now() WHERE status='running' AND (kind='batch')=%s""", (batch,))
+
+
+def restart_replay(total):
+    """Start a new labelled demonstration run without deleting earlier results."""
+    if total <= 0:
+        raise ValueError('The replay dataset is unavailable.')
+    with connect() as conn:
+        state = conn.execute('SELECT * FROM generator_control WHERE id=1 FOR UPDATE').fetchone()
+        if state['source'] != 'real' or state['enabled'] or state['replay_pending']:
+            raise ValueError('Pause and wait for delivery to finish before starting another replay.')
+        if state['replay_position'] < total:
+            raise ValueError('Resume the current sample with Start events; restart is available after completion.')
+        if conn.execute("SELECT 1 FROM control_actions WHERE status IN ('queued','running')").fetchone():
+            raise ValueError('Wait for the active action to finish.')
+        conn.execute('UPDATE generator_control SET replay_position=0,replay_run=replay_run+1,enabled=true,error=NULL WHERE id=1')

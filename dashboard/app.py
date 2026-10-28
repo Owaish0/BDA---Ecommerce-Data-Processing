@@ -140,11 +140,12 @@ def overview(real, state):
     st.write("See what customers viewed, added to their carts, and purchased.")
     scope = st.radio(
         "Which data do you want to see?",
-        ["Full historical dataset", "Live replay"],
+        ["Full historical dataset", "Live replay", "Synthetic data"],
         key="overview_scope",
         horizontal=True,
     )
     historical_scope = scope == "Full historical dataset"
+    real = scope != "Synthetic data"
     if historical_scope:
         data = customer_pages.report()
         if not data:
@@ -176,6 +177,9 @@ def overview(real, state):
         manifest = metadata() if real else None
         if manifest:
             st.caption(
+                f"Real replay run {state['replay_run'] + 1}. Live totals include previous demonstration runs, so they can exceed the sample size. Historical totals remain unchanged."
+            )
+            st.caption(
                 f"Replay source: {manifest['accepted_rows']:,} records from the original demonstration sample. This is separate from the full historical dataset."
             )
             if state["replay_position"] >= manifest["accepted_rows"]:
@@ -186,7 +190,7 @@ def overview(real, state):
         df = metrics(real, period)
         if df.empty:
             st.info(
-                "No processed events in this period yet. Choose a wider period, or open Replay controls to start sending events."
+                "No processed events in this period yet. Choose a wider period, or open Replay controls and select the matching event source to start sending events."
             )
             return
         values = {
@@ -294,6 +298,23 @@ def replay_controls(real, state):
         st.caption(
             "This send counter includes synthetic tests and real replay. It is not the number of unique events accepted by Spark."
         )
+    if real and manifest:
+        st.caption(
+            f"Demonstration run {state['replay_run'] + 1}. Live totals include previous runs; full historical totals never change when replaying."
+        )
+        if exhausted:
+            st.info(
+                "The sample has finished. Start a new replay below, or select Synthetic events for continuous generated activity."
+            )
+            if st.button(
+                "Replay sample again",
+                disabled=not healthy or state["enabled"] or bool(state["replay_pending"]),
+            ):
+                try:
+                    control.restart_replay(total)
+                    st.rerun()
+                except ValueError as exc:
+                    st.warning(str(exc))
     left, right = st.columns(2)
     if left.button(
         "Start events", disabled=state["enabled"] or not healthy or exhausted, use_container_width=True
@@ -315,7 +336,8 @@ def replay_controls(real, state):
             load("UPDATE generator_control SET rate=%s WHERE id=1 RETURNING id", (rate,))
             st.toast("Speed updated.")
     active = active_actions()
-    with st.expander("Change the data source"):
+    with st.container():
+        st.subheader("Choose the event source")
         choice = st.selectbox(
             "Event source", ["Real dataset replay", "Synthetic events"], index=0 if real else 1
         )

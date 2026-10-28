@@ -55,7 +55,7 @@ def normalize(row, row_number):
     }
 
 
-def read_batch(position, count, path=None):
+def read_batch(position, count, path=None, run_id=0):
     with open_dataset(path) as conn:
         rows = conn.execute('SELECT position,payload FROM events WHERE position>? ORDER BY position LIMIT ?',
                             (position, count)).fetchall()
@@ -65,5 +65,8 @@ def read_batch(position, count, path=None):
     for _, payload in rows:
         event = json.loads(payload)
         event['event_time'] = at
+        if run_id:
+            event['event_id'] = f"replay-{run_id}:" + event['event_id']
+            event['session_id'] = f"replay-{run_id}:" + event['session_id']
         events.append(event)
     return (rows[-1][0] if rows else position), events

@@ -51,7 +51,7 @@ def main():
                 if state['source'] == 'real' and state['enabled']:
                     pending = state['replay_pending']
                     if not pending:
-                        position, events = read_batch(state['replay_position'], state['rate'])
+                        position, events = read_batch(state['replay_position'], state['rate'], run_id=state['replay_run'])
                         if events:
                             pending = {'position': position, 'events': events}
                             conn.execute('UPDATE generator_control SET replay_pending=%s WHERE id=1', (Jsonb(pending),))
