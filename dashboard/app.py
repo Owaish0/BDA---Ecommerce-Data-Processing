@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -137,14 +138,60 @@ def period_picker(key):
 def overview(real, state):
     st.title("Store activity at a glance")
     st.write("See what customers viewed, added to their carts, and purchased.")
-    period = period_picker("overview_period")
-    df = metrics(real, period)
-    if df.empty:
+    scope = st.radio(
+        "Which data do you want to see?",
+        ["Full historical dataset", "Live replay"],
+        key="overview_scope",
+        horizontal=True,
+    )
+    historical_scope = scope == "Full historical dataset"
+    if historical_scope:
+        data = customer_pages.report()
+        if not data:
+            st.caption("You can switch to Live replay to see events processed by the demonstration pipeline.")
+            return
         st.info(
-            "No processed events in this period yet. Choose a wider period, or open Replay controls to start sending events."
+            "These totals cover all imported and analysed months. They do not include additional copies sent through live replay. November–April are not included until imported and analysed."
         )
-        return
-    values = {key: int(df[key].sum()) for key in ["events", "views", "carts", "purchases", "revenue_paise"]}
+        rows = data["monthly"]
+        values = {
+            key: sum(int(row[field]) for row in rows)
+            for key, field in [
+                ("events", "actions"),
+                ("views", "views"),
+                ("carts", "carts"),
+                ("purchases", "purchases"),
+            ]
+        }
+        values["revenue_paise"] = int(
+            sum((Decimal(row["purchase_price_sum"] or "0") for row in rows), Decimal(0)) * 100
+        )
+        real = True
+    else:
+        st.caption(
+            "LIVE REPLAY · "
+            + ("Real demonstration sample" if real else "Synthetic test events")
+            + " · Charts use replay timestamps"
+        )
+        manifest = metadata() if real else None
+        if manifest:
+            st.caption(
+                f"Replay source: {manifest['accepted_rows']:,} records from the original demonstration sample. This is separate from the full historical dataset."
+            )
+            if state["replay_position"] >= manifest["accepted_rows"]:
+                st.success(
+                    f"{manifest['accepted_rows']:,}-record demonstration sample completed. Spark may still be finishing queued records. Choose Full historical dataset for the larger imported history."
+                )
+        period = period_picker("overview_period")
+        df = metrics(real, period)
+        if df.empty:
+            st.info(
+                "No processed events in this period yet. Choose a wider period, or open Replay controls to start sending events."
+            )
+            return
+        values = {
+            key: int(df[key].sum()) for key in ["events", "views", "carts", "purchases", "revenue_paise"]
+        }
     cols = [*st.columns(2), *st.columns(2)]
     for col, label, key, explanation in zip(
         cols,
@@ -159,7 +206,7 @@ def overview(real, state):
     ):
         col.metric(label, f"{values[key]:,}", help=explanation)
     st.info(
-        f"How to read this: Spark processed {values['events']:,} actions in the selected period. "
+        f"How to read this: Spark processed {values['events']:,} actions in this view. "
         f"Of those, {values['views']:,} were product views and {values['purchases']:,} were purchase records. "
         'These are action counts, not counts of people.'
     )
@@ -190,6 +237,15 @@ def overview(real, state):
         st.caption(
             "Average = the displayed total ÷ purchase records. For real data this is not average order value."
         )
+    if historical_scope:
+        with st.expander("How are these numbers calculated?"):
+            st.write(
+                "Spark reads the validated historical records using their original shopping timestamps. This view adds the action totals from the completed monthly reports; it does not add replay totals or sum distinct-customer counts across months."
+            )
+        st.caption(
+            "Next: Customer behaviour, Shopping journeys and Product performance explore this historical dataset."
+        )
+        return
     with st.expander("How are these numbers calculated?"):
         st.write(
             "Kafka receives event records. Spark validates them, handles duplicates, and groups accepted events by minute and product. This page adds those minute totals for your selected period."
@@ -213,7 +269,7 @@ def replay_controls(real, state):
     total = manifest["accepted_rows"] if manifest else 0
     exhausted = real and (not manifest or state["replay_position"] >= total)
     status = (
-        "Replay complete"
+        f"{total:,}-record demonstration sample completed"
         if real and manifest and state["replay_position"] >= total
         else ("Worker unavailable" if not healthy else "Sending events" if state["enabled"] else "Paused")
     )
@@ -223,9 +279,12 @@ def replay_controls(real, state):
             "The replay service is stopped or restarting. Your saved position is safe. Live controls become available when the service reconnects; completed historical reports remain available."
         )
     if real and manifest:
+        st.caption(
+            f"This replay uses the original {total:,}-record demonstration sample, not the full historical import. On Overview, choose Full historical dataset to see all imported and analysed records."
+        )
         st.progress(
             min(1.0, state["replay_position"] / total),
-            text=f"{state['replay_position']:,} of {total:,} real records sent",
+            text=f"{state['replay_position']:,} of {total:,} demonstration-sample records sent",
         )
         st.caption(
             "This is delivery progress: Kafka has acknowledged these records. Spark may still be processing them. The replay stops at the end; it does not loop automatically."
@@ -620,7 +679,7 @@ def render_page():
     try:
         state = load("SELECT * FROM generator_control WHERE id=1")[0]
         real = state["source"] == "real"
-        if page in PAGES[:6]:
+        if page in PAGES[1:6]:
             st.caption(
                 ("REAL DATA REPLAY" if real else "SYNTHETIC TEST DATA")
                 + " · Updated "

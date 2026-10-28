@@ -9,6 +9,7 @@ with sync_playwright() as p:
     page = browser.new_page(viewport={"width": 1440, "height": 1000})
     try:
         page.goto("http://localhost:8501", wait_until="domcontentloaded")
+        page.get_by_role("radio", name="Live replay", exact=True).check()
         page.get_by_text("Actions processed", exact=True).wait_for(timeout=60000)
         page.get_by_text("What types of actions occurred?", exact=True).wait_for(timeout=60000)
         page.get_by_role("radio", name="Historical report", exact=True).check()

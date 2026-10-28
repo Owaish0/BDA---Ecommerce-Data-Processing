@@ -27,13 +27,29 @@ def main():
         video = page.video
         try:
             page.goto("http://localhost:8501", wait_until="domcontentloaded")
+            page.get_by_role("radio", name="Live replay", exact=True).check()
             page.get_by_text("What types of actions occurred?", exact=True).wait_for(timeout=60000)
             time.sleep(5)  # Reading time in the recorded demonstration.
             with open("reports/demo/producer.log", "w") as log:
                 producer = subprocess.Popen(
-                    PREFIX + ["run", "--rm", "--no-deps", "producer", "python", "-m",
-                              "ecommerce.producer", "--rate", "10", "--count", "120", "--scenario", "burst"],
-                    stdout=log, stderr=subprocess.STDOUT,
+                    PREFIX
+                    + [
+                        "run",
+                        "--rm",
+                        "--no-deps",
+                        "producer",
+                        "python",
+                        "-m",
+                        "ecommerce.producer",
+                        "--rate",
+                        "10",
+                        "--count",
+                        "120",
+                        "--scenario",
+                        "burst",
+                    ],
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
                 )
                 try:
                     producer.wait(timeout=150)
