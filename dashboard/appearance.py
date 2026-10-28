@@ -16,18 +16,18 @@ def apply():
         layout=dict(
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(family="Inter, Segoe UI, sans-serif", color="#bcc9df", size=13),
-            colorway=["#52e0c4", "#8a9cff", "#c9a0ff", "#ffca80"],
+            font=dict(family="Inter, Segoe UI, sans-serif", color="#dbc8e5", size=13),
+            colorway=["#ffab66", "#b784f5", "#ddacf5", "#ffc894"],
             margin=dict(l=20, r=20, t=30, b=25),
-            xaxis=dict(gridcolor="#233048", zerolinecolor="#233048", title_standoff=18),
-            yaxis=dict(gridcolor="#233048", zerolinecolor="#233048", title_standoff=18),
-            hoverlabel=dict(bgcolor="#20304a", font_color="#f3f7ff", bordercolor="#52e0c4"),
+            xaxis=dict(gridcolor="#50365d", zerolinecolor="#50365d", title_standoff=18),
+            yaxis=dict(gridcolor="#50365d", zerolinecolor="#50365d", title_standoff=18),
+            hoverlabel=dict(bgcolor="#432b50", font_color="#fff7f1", bordercolor="#ffab66"),
             legend=dict(title_text="", orientation="h", y=1.12, x=0),
             bargap=0.35,
         )
     )
     px.defaults.template = "commerce"
-    px.defaults.color_discrete_sequence = ["#52e0c4", "#8a9cff", "#c9a0ff", "#ffca80"]
+    px.defaults.color_discrete_sequence = ["#ffab66", "#b784f5", "#ddacf5", "#ffc894"]
 
 
 def brand():
