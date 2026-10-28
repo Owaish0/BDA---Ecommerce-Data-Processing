@@ -12,7 +12,7 @@ if "--fixture" in sys.argv:
     customer_pages.ROOT = Path("/app/data/history-fixture")
 app = AppTest.from_file("/app/dashboard/app.py", default_timeout=30).run()
 assert not app.exception, app.exception
-pages = list(app.radio(key="page").options)
+pages = [label.split("  ", 1)[-1] for label in app.radio(key="page").options]
 for page in pages:
     app.radio(key="page").set_value(page).run()
     assert not app.exception, (page, app.exception)

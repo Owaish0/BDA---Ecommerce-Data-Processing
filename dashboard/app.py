@@ -10,6 +10,7 @@ import streamlit as st
 
 from ecommerce import control
 import customer_pages
+import appearance
 from ecommerce.events import CATALOG
 from ecommerce.replay import metadata
 
@@ -38,10 +39,7 @@ STAGES = {
 st.set_page_config(
     page_title="Commerce Pulse", page_icon="📊", layout="wide", initial_sidebar_state="expanded"
 )
-st.markdown(
-    '<style>.block-container {padding-top:4rem;padding-left:1.5rem;padding-right:1.5rem;max-width:1300px} [data-testid="stMetricValue"] {font-size:1.9rem}</style>',
-    unsafe_allow_html=True,
-)
+appearance.apply()
 
 
 def load(sql, params=()):
@@ -196,7 +194,7 @@ def overview(real, state):
         values = {
             key: int(df[key].sum()) for key in ["events", "views", "carts", "purchases", "revenue_paise"]
         }
-    cols = [*st.columns(2), *st.columns(2)]
+    cols = st.columns(4)
     for col, label, key, explanation in zip(
         cols,
         ["Actions processed", "Product views", "Added to cart", "Purchase records"],
@@ -317,7 +315,10 @@ def replay_controls(real, state):
                     st.warning(str(exc))
     left, right = st.columns(2)
     if left.button(
-        "Start events", disabled=state["enabled"] or not healthy or exhausted, use_container_width=True
+        "Start events",
+        type="primary",
+        disabled=state["enabled"] or not healthy or exhausted,
+        use_container_width=True,
     ):
         load("UPDATE generator_control SET enabled=true WHERE id=1 RETURNING id")
         st.rerun()
@@ -689,9 +690,14 @@ except psycopg.Error:
     st.stop()
 
 with st.sidebar:
-    st.title("Commerce Pulse")
-    st.caption("Shopping activity, explained simply")
-    page = st.radio("Choose a page", PAGES, key="page")
+    appearance.brand()
+    st.caption("Explore your store. Understand every action.")
+    page = st.radio(
+        "Workspace",
+        PAGES,
+        key="page",
+        format_func=lambda name: f"{appearance.ICONS[PAGES.index(name)]}  {name}",
+    )
     st.divider()
     st.caption("CS404 · Big Data Analytics\n\nKafka · Spark · HDFS · PostgreSQL")
 
@@ -724,6 +730,7 @@ def render_page():
                 ],
             )
         )
+        appearance.page_banner(page, PAGES.index(page))
         handlers[page](real, state)
     except psycopg.Error:
         st.error(
