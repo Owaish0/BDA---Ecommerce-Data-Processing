@@ -218,6 +218,10 @@ def replay_controls(real, state):
         else ("Worker unavailable" if not healthy else "Sending events" if state["enabled"] else "Paused")
     )
     st.subheader(status)
+    if not healthy and not exhausted:
+        st.warning(
+            "The replay service is stopped or restarting. Your saved position is safe. Live controls become available when the service reconnects; completed historical reports remain available."
+        )
     if real and manifest:
         st.progress(
             min(1.0, state["replay_position"] / total),

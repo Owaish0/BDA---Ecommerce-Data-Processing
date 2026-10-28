@@ -69,6 +69,7 @@ services:
       retries: 20
     restart: unless-stopped
   namenode:
+    hostname: namenode
     build:
       context: .
       dockerfile: docker/hadoop.Dockerfile
@@ -82,6 +83,7 @@ services:
       retries: 30
     restart: unless-stopped
   datanode:
+    hostname: datanode
     build:
       context: .
       dockerfile: docker/hadoop.Dockerfile
