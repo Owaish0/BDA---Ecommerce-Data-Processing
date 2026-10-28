@@ -79,3 +79,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline:2px s
 }
 [data-testid="stSpinner"] p { color: #ffe1c9; font-weight: 600; }
 @media (max-width: 600px) { [data-testid="stSpinner"] { right: .75rem; max-width: calc(100vw - 1.5rem); font-size: .85rem; } }
+
+/* Hide framework actions while preserving the sidebar collapse control. */
+[data-testid="stToolbar"], [data-testid="stDecoration"], #MainMenu { display: none !important; }
+[data-testid="stHeader"] { background: transparent; pointer-events: none; }
+[data-testid="stHeader"] button { pointer-events: auto; }
