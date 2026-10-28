@@ -36,10 +36,10 @@ def publish(frame, epoch, query_name):
                 for _ in frame.toLocalIterator():
                     pass
                 return
+            batch = []
             for row in frame.toLocalIterator():
                 r = row.asDict(recursive=True)
-                cur.execute(
-                    UPSERT,
+                batch.append(
                     (
                         query_name,
                         r["window"]["start"],
@@ -55,6 +55,11 @@ def publish(frame, epoch, query_name):
                         epoch,
                     ),
                 )
+                if len(batch) >= 1000:
+                    cur.executemany(UPSERT, batch)
+                    batch.clear()
+            if batch:
+                cur.executemany(UPSERT, batch)
             cur.execute("INSERT INTO batch_commits(query_name,epoch_id) VALUES (%s,%s)", (query_name, epoch))
 
 

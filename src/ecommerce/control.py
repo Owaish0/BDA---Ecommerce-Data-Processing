@@ -8,6 +8,12 @@ CREATE TABLE IF NOT EXISTS generator_control (
  id integer PRIMARY KEY CHECK(id=1), enabled boolean NOT NULL DEFAULT true,
  rate integer NOT NULL DEFAULT 100 CHECK(rate BETWEEN 1 AND 500),
  delivered bigint NOT NULL DEFAULT 0, heartbeat timestamptz, error text);
+DO $$ BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='generator_control'::regclass AND conname='generator_control_rate_v2_check') THEN
+  ALTER TABLE generator_control DROP CONSTRAINT IF EXISTS generator_control_rate_check;
+  ALTER TABLE generator_control ADD CONSTRAINT generator_control_rate_v2_check CHECK(rate BETWEEN 1 AND 2000);
+ END IF;
+END $$;
 ALTER TABLE generator_control ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'synthetic';
 ALTER TABLE generator_control ADD COLUMN IF NOT EXISTS replay_position bigint NOT NULL DEFAULT 0;
 ALTER TABLE generator_control ADD COLUMN IF NOT EXISTS replay_pending jsonb;

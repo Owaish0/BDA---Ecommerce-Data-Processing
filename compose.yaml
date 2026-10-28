@@ -18,6 +18,7 @@ x-spark: &spark
     LAKE_ROOT: hdfs://namenode:9000/ecommerce
     CHECKPOINT_ROOT: hdfs://namenode:9000/checkpoints
     WATERMARK: ${WATERMARK:-2 minutes}
+    STREAM_TRIGGER: ${STREAM_TRIGGER:-5 seconds}
     SPARK_SHUFFLE_PARTITIONS: ${SPARK_SHUFFLE_PARTITIONS:-4}
     MAX_OFFSETS_PER_TRIGGER: ${MAX_OFFSETS_PER_TRIGGER:-10000}
   restart: unless-stopped
@@ -117,18 +118,18 @@ services:
       retries: 20
   spark-worker:
     <<: *spark
-    command: ['/opt/spark/bin/spark-class', 'org.apache.spark.deploy.worker.Worker', '--cores', '2', '--memory', '3g', 'spark://spark-master:7077']
+    command: ['/opt/spark/bin/spark-class', 'org.apache.spark.deploy.worker.Worker', '--cores', '${SPARK_WORKER_CORES:-2}', '--memory', '${SPARK_WORKER_MEMORY:-3g}', 'spark://spark-master:7077']
     depends_on:
       spark-master: {condition: service_healthy}
   spark-worker-2:
     <<: *spark
     profiles: [scale]
-    command: ['/opt/spark/bin/spark-class', 'org.apache.spark.deploy.worker.Worker', '--cores', '2', '--memory', '3g', 'spark://spark-master:7077']
+    command: ['/opt/spark/bin/spark-class', 'org.apache.spark.deploy.worker.Worker', '--cores', '${SPARK_WORKER_CORES:-2}', '--memory', '${SPARK_WORKER_MEMORY:-3g}', 'spark://spark-master:7077']
     depends_on:
       spark-master: {condition: service_healthy}
   streaming:
     <<: *spark
-    command: ['/opt/spark/bin/spark-submit', '--master', '${SPARK_MASTER:-spark://spark-master:7077}', '--driver-memory', '2g', '--executor-memory', '2g', '--conf', 'spark.driver.host=streaming', '--conf', 'spark.jars.ivy=/tmp/ivy', '--packages', 'org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.6', '/app/jobs/streaming.py']
+    command: ['/opt/spark/bin/spark-submit', '--master', '${SPARK_MASTER:-spark://spark-master:7077}', '--driver-memory', '${SPARK_DRIVER_MEMORY:-2g}', '--executor-memory', '${SPARK_EXECUTOR_MEMORY:-2g}', '--conf', 'spark.executor.cores=${SPARK_WORKER_CORES:-2}', '--conf', 'spark.scheduler.mode=FAIR', '--conf', 'spark.driver.host=streaming', '--conf', 'spark.jars.ivy=/tmp/ivy', '--packages', 'org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.6', '/app/jobs/streaming.py']
     depends_on:
       kafka-init: {condition: service_completed_successfully}
       hdfs-init: {condition: service_completed_successfully}

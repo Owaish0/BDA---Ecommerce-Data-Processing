@@ -16,11 +16,12 @@ stopped = False
 
 
 def start(writer, name, mode="append"):
+    session.sparkContext.setLocalProperty("spark.scheduler.pool", name)
     query = (
         writer.queryName(name)
         .outputMode(mode)
         .option("checkpointLocation", f"{checkpoint}/{name}")
-        .trigger(processingTime="5 seconds")
+        .trigger(processingTime=os.getenv("STREAM_TRIGGER", "5 seconds"))
         .start()
     )
     queries.append(query)

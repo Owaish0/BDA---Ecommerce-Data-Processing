@@ -7,7 +7,6 @@ from pathlib import Path
 import platform
 import subprocess
 import time
-import urllib.request
 
 from integration import PREFIX, accepted_count, command, produce, wait_for
 
@@ -34,8 +33,16 @@ def main():
 
     def workers_ready():
         nonlocal cluster
-        with urllib.request.urlopen("http://localhost:8080/json/", timeout=10) as response:
-            cluster = json.load(response)
+        cluster = json.loads(
+            command(
+                "exec",
+                "-T",
+                "spark-master",
+                "python3",
+                "-c",
+                "import urllib.request; print(urllib.request.urlopen('http://localhost:8080/json/',timeout=10).read().decode())",
+            )
+        )
         return sum(w.get("state") == "ALIVE" for w in cluster.get("workers", [])) == args.workers
 
     wait_for(workers_ready, "expected Spark workers register", seconds=120)
@@ -49,26 +56,39 @@ def main():
             delivered = time.monotonic()
             wait_for(
                 lambda: accepted_count() == baseline + args.events,
-                "benchmark input becomes visible without count inflation", seconds=600,
+                "benchmark input becomes visible without count inflation",
+                seconds=600,
             )
             finished = time.monotonic()
-            records.append({
-                "requested_rate": rate, "trial": trial + 1, "events": args.events,
-                "delivery_seconds": delivered - started,
-                "all_visible_seconds": finished - started,
-                "after_delivery_seconds": finished - delivered,
-                "effective_visible_events_per_second": args.events / (finished - started),
-            })
+            records.append(
+                {
+                    "requested_rate": rate,
+                    "trial": trial + 1,
+                    "events": args.events,
+                    "delivery_seconds": delivered - started,
+                    "all_visible_seconds": finished - started,
+                    "after_delivery_seconds": finished - delivered,
+                    "effective_visible_events_per_second": args.events / (finished - started),
+                }
+            )
             print(json.dumps(records[-1]), flush=True)
     summaries = []
     for rate in args.rates:
         values = [r["all_visible_seconds"] for r in records if r["requested_rate"] == rate]
-        summaries.append({"rate": rate, "batch_visibility_p50_seconds": percentile(values, .5),
-                          "batch_visibility_p95_seconds": percentile(values, .95)})
+        summaries.append(
+            {
+                "rate": rate,
+                "batch_visibility_p50_seconds": percentile(values, 0.5),
+                "batch_visibility_p95_seconds": percentile(values, 0.95),
+            }
+        )
     report = {
-        "host": platform.platform(), "cluster": cluster, "expected_workers": args.workers,
+        "host": platform.platform(),
+        "cluster": cluster,
+        "expected_workers": args.workers,
         "docker_version": subprocess.check_output(["docker", "version", "--format", "{{json .}}"], text=True),
-        "measurements": records, "summaries": summaries,
+        "measurements": records,
+        "summaries": summaries,
         "definition": "Finite batch launch to all events visible in sales metrics. Includes producer container startup, delivery and polling (up to 5s). Not per-event latency or sustainable throughput. Small-sample percentiles are descriptive only.",
     }
     Path("reports/benchmark.json").write_text(json.dumps(report, indent=2), encoding="utf-8")

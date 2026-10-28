@@ -70,3 +70,22 @@ class SinkTests(unittest.TestCase):
         self.assertEqual(self.read(), [])
         publish(self.frame(), 0, "test")
         self.assertEqual(self.read(), [(19999, 0)])
+
+    def test_failure_after_first_bulk_chunk_rolls_back(self):
+        from ecommerce.sink import publish
+
+        row = next(self.frame().toLocalIterator())
+
+        class Frame:
+            def toLocalIterator(self):
+                for _ in range(1001):
+                    yield row
+                raise RuntimeError("failure after first chunk")
+
+        with self.assertRaises(RuntimeError):
+            publish(Frame(), 9, "bulk-failure")
+        self.assertEqual(self.read(), [])
+        import psycopg
+
+        with psycopg.connect(self.url) as conn:
+            self.assertEqual(conn.execute("SELECT count(*) FROM batch_commits").fetchone()[0], 0)

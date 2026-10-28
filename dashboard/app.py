@@ -328,7 +328,7 @@ def replay_controls(real, state):
         "Start continues from the saved replay position. Pause stops new sends after in-flight delivery; it keeps the processing services running."
     )
     with st.form("speed"):
-        rate = st.number_input("Target events / second", 1, 500, int(state["rate"]), key="rate")
+        rate = st.number_input("Target events / second", 1, 2000, int(state["rate"]), key="rate")
         st.caption(
             "For example, 100 means a target of 100 shopping actions sent each second. Actual speed depends on the computer."
         )
