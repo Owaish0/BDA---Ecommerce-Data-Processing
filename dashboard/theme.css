@@ -55,3 +55,16 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline:2px s
 /* Keep informational callouts in the workspace palette. */
 [data-testid="stAlert"]:has([data-testid="stAlertContentInfo"]) { background: #34233f; color: #ecd9fa; border-color: #69477c; }
 [data-testid="stAlertContentInfo"] { color: #ecd9fa; }
+
+/* Preserve chart contrast during Streamlit reruns; show explicit progress instead. */
+[data-stale="true"], [data-testid="stElementContainer"][data-stale="true"],
+[data-testid="stElementContainer"]:has([data-testid="stPlotlyChart"]) { opacity: 1 !important; }
+[data-testid="stSpinner"] {
+    position: fixed; top: 3.6rem; right: 1.5rem; z-index: 999;
+    width: max-content; max-width: calc(100vw - 3rem);
+    background: #3c254b; color: #fff1e6; border: 1px solid #c98d61;
+    border-radius: 12px; padding: .85rem 1.2rem;
+    box-shadow: 0 8px 30px #00000055; pointer-events: none;
+}
+[data-testid="stSpinner"] p { color: #ffe1c9; font-weight: 600; }
+@media (max-width: 600px) { [data-testid="stSpinner"] { right: .75rem; max-width: calc(100vw - 1.5rem); font-size: .85rem; } }

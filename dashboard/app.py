@@ -704,38 +704,39 @@ with st.sidebar:
 
 @st.fragment(run_every="5s")
 def render_page():
-    try:
-        state = load("SELECT * FROM generator_control WHERE id=1")[0]
-        real = state["source"] == "real"
-        if page in PAGES[1:6]:
-            st.caption(
-                ("REAL DATA REPLAY" if real else "SYNTHETIC TEST DATA")
-                + " · Updated "
-                + datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
+    with st.spinner("Refreshing charts and data... Please wait."):
+        try:
+            state = load("SELECT * FROM generator_control WHERE id=1")[0]
+            real = state["source"] == "real"
+            if page in PAGES[1:6]:
+                st.caption(
+                    ("REAL DATA REPLAY" if real else "SYNTHETIC TEST DATA")
+                    + " · Updated "
+                    + datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
+                )
+            handlers = dict(
+                zip(
+                    PAGES,
+                    [
+                        overview,
+                        replay_controls,
+                        products,
+                        quality,
+                        historical,
+                        explain,
+                        customer_pages.behaviour,
+                        customer_pages.journeys,
+                        customer_pages.products,
+                        customer_pages.methods,
+                    ],
+                )
             )
-        handlers = dict(
-            zip(
-                PAGES,
-                [
-                    overview,
-                    replay_controls,
-                    products,
-                    quality,
-                    historical,
-                    explain,
-                    customer_pages.behaviour,
-                    customer_pages.journeys,
-                    customer_pages.products,
-                    customer_pages.methods,
-                ],
+            appearance.page_banner(page, PAGES.index(page))
+            handlers[page](real, state)
+        except psycopg.Error:
+            st.error(
+                "The database is temporarily unavailable. Your saved data and replay position have not been reset."
             )
-        )
-        appearance.page_banner(page, PAGES.index(page))
-        handlers[page](real, state)
-    except psycopg.Error:
-        st.error(
-            "The database is temporarily unavailable. Your saved data and replay position have not been reset."
-        )
 
 
 render_page()
