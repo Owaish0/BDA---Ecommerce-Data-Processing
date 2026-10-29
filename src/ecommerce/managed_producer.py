@@ -61,7 +61,7 @@ def main():
                 events = pending['events'] if pending else []
             else:
                 action = control.claim()
-                events = scenario_events(generator, action['kind'], 1000 if action['kind'] == 'burst' else 100) if action else (
+                events = scenario_events(generator, action['kind'], control.FLASH_SALE_EVENTS if action['kind'] == 'burst' else 100) if action else (
                     scenario_events(generator, 'normal', state['rate']) if state['enabled'] else [])
             confirmed = []
             errors = []

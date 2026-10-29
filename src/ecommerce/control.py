@@ -3,6 +3,8 @@ import os
 import psycopg
 from psycopg.rows import dict_row
 
+FLASH_SALE_EVENTS = 10_000
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS generator_control (
  id integer PRIMARY KEY CHECK(id=1), enabled boolean NOT NULL DEFAULT true,

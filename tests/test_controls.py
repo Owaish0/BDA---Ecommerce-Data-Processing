@@ -3,6 +3,7 @@ import pytest
 from ecommerce.events import EventGenerator, validate, timestamp
 from ecommerce.managed_producer import scenario_events
 from ecommerce.control import enqueue
+from ecommerce import control
 
 
 def test_duplicate_pairs_have_identical_payloads():
@@ -12,7 +13,9 @@ def test_duplicate_pairs_have_identical_payloads():
 
 
 def test_flash_sale_and_late_records():
-    records = scenario_events(EventGenerator(), 'burst', 1000)
+    records = scenario_events(EventGenerator(), 'burst', control.FLASH_SALE_EVENTS)
+    assert len(records) == 10_000
+    assert len({r['event_id'] for r in records}) == 10_000
     assert all(validate(r)['event_type'] == 'purchase' for r in records)
     late = scenario_events(EventGenerator(), 'late')
     assert all(179 < (datetime.now(timezone.utc)-timestamp(r['event_time'])).total_seconds() < 190 for r in late)

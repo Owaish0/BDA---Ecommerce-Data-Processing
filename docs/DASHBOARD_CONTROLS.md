@@ -4,7 +4,7 @@ Controls live directly in the main dashboard. There is no separate demo panel.
 
 1. Set a target rate and click **Apply speed**. Use **Start events** and **Pause events**
    to control continuous traffic; Kafka and Spark remain running.
-2. Click **Flash sale** for 1,000 purchase records, biased toward Headphones. Observe
+2. Click **Flash sale** for 10,000 purchase records, biased toward Headphones. Observe
    purchase and revenue windows after Spark catches up.
 3. Under **Data quality**, send duplicate pairs, invalid records, or late records.
    Read **Action activity** for delivery acknowledgement and Spark progress for

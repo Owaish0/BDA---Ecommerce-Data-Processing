@@ -46,7 +46,7 @@ try:
     click('Pause events')
     time.sleep(3)
     for label, kind, expected in [
-        ('⚡ Flash sale · 1,000 purchases', 'burst', 1000),
+        (f'Flash sale · {control.FLASH_SALE_EVENTS:,} purchases', 'burst', control.FLASH_SALE_EVENTS),
         ('Send duplicates · 50 pairs', 'duplicates', 100),
         ('Send invalid · 100 records', 'invalid', 100),
         ('Send late · 100 records', 'late', 100),

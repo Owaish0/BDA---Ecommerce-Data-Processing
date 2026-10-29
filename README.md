@@ -132,7 +132,7 @@ browser; closing a tab does not stop the containers.
 ## Operation
 
 The main dashboard includes Start/Pause, target speed (1–2,000 events/second), and a
-flash sale of 1,000 purchase records. Data-quality controls send 50 duplicate pairs,
+flash sale of 10,000 purchase records. Data-quality controls send 50 duplicate pairs,
 100 invalid records, or 100 records timestamped three minutes in the past. Each finite
 action works even when continuous generation is paused. Pause does not cancel an
 already-running finite action. Action activity records queued, running, completed,

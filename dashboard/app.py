@@ -362,10 +362,15 @@ def replay_controls(real, state):
     if not real:
         st.subheader("Create a purchase surge")
         st.write(
-            "Send 1,000 synthetic purchases, mostly for Headphones, then watch Overview or Products & categories."
+            f"Send {control.FLASH_SALE_EVENTS:,} synthetic purchases in one burst, mostly for Headphones, then watch Overview or Products & categories."
         )
-        if st.button("⚡ Flash sale · 1,000 purchases", disabled=bool(active) or not healthy):
+        if st.button(
+            f"Flash sale · {control.FLASH_SALE_EVENTS:,} purchases", disabled=bool(active) or not healthy
+        ):
             submit("burst")
+        st.caption(
+            "This is a finite burst, separate from the normal speed setting. Delivery time depends on Kafka and this machine; Spark may take longer to display all results. Normal generation resumes afterwards if enabled."
+        )
         activity("burst")
     if state["error"]:
         st.error(state["error"])
